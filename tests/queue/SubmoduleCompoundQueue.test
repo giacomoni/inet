@@ -1,0 +1,89 @@
+%description:
+
+yes
+
+%file: test.ned
+
+import inet.common.newqueue.IPacketQueue;
+import test.queue.TestProtocolUsingAccessor;
+import test.queue.TestSource;
+import test.queue.TestSink;
+
+network TestSubmodule
+{
+    submodules:
+        source: TestSource {
+            @display("p=100,100");
+        }
+        protocol: TestProtocolUsingAccessor {
+            @display("p=200,100");
+        }
+        sink: TestSink {
+            @display("p=300,100");
+        }
+    connections:
+        source.out --> protocol.in;
+        protocol.out --> sink.in;
+}
+
+%inifile: omnetpp.ini
+
+[General]
+network = TestSubmodule
+sim-time-limit = 10s
+cmdenv-event-banners = false
+*.source.interval = uniform(0s, 0.5s)
+*.protocol.interval = uniform(0s, 1s)
+*.protocol.queue.typename = "TestCompoundQueue"
+
+%contains: stdout
+Packet sent: (inet::Packet)0 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)1 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)2 (1 bytes) [BitCountChunk, length = 1 b]
+Packet received: (inet::Packet)0 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)3 (1 bytes) [BitCountChunk, length = 1 b]
+Packet received: (inet::Packet)1 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)4 (0 bytes) [BitCountChunk, length = 0 B]
+Packet received: (inet::Packet)2 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)5 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)6 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)7 (1 bytes) [BitCountChunk, length = 1 b]
+Packet received: (inet::Packet)4 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)8 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)9 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)10 (1 bytes) [BitCountChunk, length = 1 b]
+Packet received: (inet::Packet)5 (0 bytes) [BitCountChunk, length = 0 B]
+Packet received: (inet::Packet)6 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)11 (1 bytes) [BitCountChunk, length = 1 b]
+Packet received: (inet::Packet)9 (0 bytes) [BitCountChunk, length = 0 B]
+Packet received: (inet::Packet)3 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)12 (1 bytes) [BitCountChunk, length = 1 b]
+Packet received: (inet::Packet)7 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)13 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)14 (0 bytes) [BitCountChunk, length = 0 B]
+Packet received: (inet::Packet)8 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)15 (0 bytes) [BitCountChunk, length = 0 B]
+Packet received: (inet::Packet)14 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)16 (1 bytes) [BitCountChunk, length = 1 b]
+Packet received: (inet::Packet)15 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)17 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)18 (0 bytes) [BitCountChunk, length = 0 B]
+Packet received: (inet::Packet)10 (1 bytes) [BitCountChunk, length = 1 b]
+Packet received: (inet::Packet)17 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)19 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)20 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)21 (0 bytes) [BitCountChunk, length = 0 B]
+Packet received: (inet::Packet)18 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)22 (0 bytes) [BitCountChunk, length = 0 B]
+Packet received: (inet::Packet)21 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)23 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)24 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)25 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)26 (1 bytes) [BitCountChunk, length = 1 b]
+Packet received: (inet::Packet)22 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)27 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)28 (1 bytes) [BitCountChunk, length = 1 b]
+Packet received: (inet::Packet)24 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)29 (1 bytes) [BitCountChunk, length = 1 b]
+Packet sent: (inet::Packet)30 (0 bytes) [BitCountChunk, length = 0 B]
+Packet sent: (inet::Packet)31 (0 bytes) [BitCountChunk, length = 0 B]
