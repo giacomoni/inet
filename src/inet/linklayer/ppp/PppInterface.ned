@@ -17,7 +17,7 @@
 
 package inet.linklayer.ppp;
 
-import inet.common.queue.IOutputQueue;
+import inet.common.newqueue.IPacketQueue;
 import inet.linklayer.contract.IPppInterface;
 import inet.linklayer.contract.ITrafficConditioner;
 
@@ -43,13 +43,13 @@ module PppInterface like IPppInterface
         egressTC: <default("")> like ITrafficConditioner if typename != "" {
             @display("p=100,200");
         }
-        queue: <default("DropTailQueue")> like IOutputQueue if typename != "" {
+        queue: <default("DropTailQueue")> like IPacketQueue if typename != "" {
             parameters:
                 @display("p=219,247;q=l2queue");
         }
         ppp: Ppp {
             parameters:
-                queueModule = (!exists(queue) ? "" : "^.queue");
+                queue.typename = default(exists(queue) ? "" : "DropTailQueue");
                 txQueueLimit = (!exists(queue) ? 10000 : 1); // queue sends one packet at a time
                 @display("p=300,400");
         }

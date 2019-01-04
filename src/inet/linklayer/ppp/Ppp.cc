@@ -40,6 +40,7 @@ simsignal_t Ppp::rxPkOkSignal = registerSignal("rxPkOk");
 Ppp::~Ppp()
 {
     cancelAndDelete(endTransmissionEvent);
+    delete queueAccessor;
 }
 
 void Ppp::initialize(int stage)
@@ -49,9 +50,7 @@ void Ppp::initialize(int stage)
     // all initialization is done in the first stage
     if (stage == INITSTAGE_LOCAL) {
         sendRawBytes = par("sendRawBytes");
-        txQueue.setName("txQueue");
         endTransmissionEvent = new cMessage("pppEndTxEvent");
-        txQueueLimit = par("txQueueLimit");
         physOutGate = gate("phys$o");
         // we're connected if other end of connection path is an input gate
         bool connected = physOutGate->getPathEndGate()->getType() == cGate::INPUT;
@@ -67,25 +66,10 @@ void Ppp::initialize(int stage)
         subscribe(POST_MODEL_CHANGE, this);
         emit(transmissionStateChangedSignal, 0L);
 
-        // find queueModule
-        queueModule = nullptr;
+        queueAccessor = new inet::queue::QueueAccessor(getSubmodule("queue"), gate("upperLayerIn"), this);
     }
     else if (stage == INITSTAGE_LINK_LAYER) {
-        if (par("queueModule").stringValue()[0]) {
-            cModule *mod = getModuleFromPar<cModule>(par("queueModule"), this);
-            if (mod->isSimple())
-                queueModule = check_and_cast<IPassiveQueue *>(mod);
-            else {
-                cGate *queueOut = mod->gate("out")->getPathStartGate();
-                queueModule = check_and_cast<IPassiveQueue *>(queueOut->getOwnerModule());
-            }
-        }
-
-        // request first frame to send
-        if (queueModule && 0 == queueModule->getNumPendingRequests()) {
-            EV_DETAIL << "Requesting first frame from queue module\n";
-            queueModule->requestPacket();
-        }
+        queueAccessor->startDequeingPacket();
     }
 }
 
@@ -148,23 +132,7 @@ void Ppp::refreshOutGateConnection(bool connected)
                 datarateChannel->forceTransmissionFinishTime(SIMTIME_ZERO);
         }
 
-        if (queueModule) {
-            // Clear external queue: send a request, and received packet will be deleted in handleMessage()
-            if (0 == queueModule->getNumPendingRequests())
-                queueModule->requestPacket();
-        }
-        else {
-            //Clear inner queue
-            while (!txQueue.isEmpty()) {
-                cMessage *msg = check_and_cast<cMessage *>(txQueue.pop());
-                EV_ERROR << "Interface is not connected, dropping packet " << msg << endl;
-                numDroppedIfaceDown++;
-                PacketDropDetails details;
-                details.setReason(INTERFACE_DOWN);
-                emit(packetDroppedSignal, msg, &details);
-                delete msg;
-            }
-        }
+        flushQueue();
     }
 
     cChannel *oldChannel = datarateChannel;
@@ -181,8 +149,8 @@ void Ppp::refreshOutGateConnection(bool connected)
         interfaceEntry->setDatarate(datarate);
     }
 
-    if (queueModule && 0 == queueModule->getNumPendingRequests())
-        queueModule->requestPacket();
+    if (connected)
+        queueAccessor->startDequeingPacket();
 }
 
 void Ppp::startTransmitting(Packet *msg)
@@ -220,7 +188,7 @@ void Ppp::handleMessageWhenUp(cMessage *message)
 {
     MacBase::handleMessageWhenUp(message);
     if (operationalState == State::STOPPING_OPERATION) {
-        if (queueModule ? queueModule->isEmpty() : txQueue.isEmpty())
+        if (queueAccessor->getQueue()->isEmpty())
             startActiveOperationExtraTimeOrFinish(par("stopOperationExtraTime"));
     }
 }
@@ -231,14 +199,7 @@ void Ppp::handleSelfMessage(cMessage *message)
         // Transmission finished, we can start next one.
         EV_INFO << "Transmission successfully completed.\n";
         emit(transmissionStateChangedSignal, 0L);
-
-        if (!txQueue.isEmpty()) {
-            auto packet = check_and_cast<Packet *>(txQueue.pop());
-            startTransmitting(packet);
-        }
-        else if (queueModule && 0 == queueModule->getNumPendingRequests()) {
-            queueModule->requestPacket();
-        }
+        queueAccessor->startDequeingPacket();
     }
     else
         throw cRuntimeError("Unknown self message");
@@ -254,28 +215,9 @@ void Ppp::handleUpperPacket(Packet *packet)
         details.setReason(INTERFACE_DOWN);
         emit(packetDroppedSignal, packet, &details);
         delete packet;
-
-        if (queueModule && 0 == queueModule->getNumPendingRequests())
-            queueModule->requestPacket();
     }
-    else {
-        if (endTransmissionEvent->isScheduled()) {
-            // We are currently busy, so just queue up the packet.
-            EV_DETAIL << "Received " << packet << " for transmission but transmitter busy, queueing.\n";
-
-            if (txQueueLimit && txQueue.getLength() > txQueueLimit)
-                throw cRuntimeError("txQueue length exceeds %d -- this is probably due to "
-                                    "a bogus app model generating excessive traffic "
-                                    "(or if this is normal, increase txQueueLimit!)",
-                        txQueueLimit);
-
-            txQueue.insert(packet);
-        }
-        else {
-            // We are idle, so we can start transmitting right away.
-            startTransmitting(packet);
-        }
-    }
+    else
+        queueAccessor->handlePacket(packet);
 }
 
 void Ppp::handleLowerPacket(Packet *packet)
@@ -335,7 +277,7 @@ void Ppp::refreshDisplay() const
             buf << "\nerr:" << numBitErr;
 
         if (endTransmissionEvent->isScheduled()) {
-            color = txQueue.getLength() >= 3 ? "red" : "yellow";
+            color = queueAccessor->getQueue()->getNumPackets() >= 3 ? "red" : "yellow";
         }
     }
     else {
@@ -376,44 +318,38 @@ cPacket *Ppp::decapsulate(Packet *packet)
 void Ppp::flushQueue()
 {
     // code would look slightly nicer with a pop() function that returns nullptr if empty
-    if (queueModule) {
-        while (!queueModule->isEmpty()) {
-            cMessage *msg = queueModule->pop();
-            PacketDropDetails details;
-            details.setReason(INTERFACE_DOWN);
-            emit(packetDroppedSignal, msg, &details); //FIXME this signal lumps together packets from the network and packets from higher layers! separate them
-            delete msg;
-        }
-        queueModule->clear();    // clear request count
-        queueModule->requestPacket();
+    auto queue = queueAccessor->getQueue();
+    while (!queue->isEmpty()) {
+        auto packet = queue->popPacket();
+        PacketDropDetails details;
+        details.setReason(INTERFACE_DOWN);
+        emit(packetDroppedSignal, packet, &details); //FIXME this signal lumps together packets from the network and packets from higher layers! separate them
+        delete packet;
     }
-    else {
-        while (!txQueue.isEmpty()) {
-            cMessage *msg = static_cast<cMessage *>(txQueue.pop());
-            PacketDropDetails details;
-            details.setReason(INTERFACE_DOWN);
-            emit(packetDroppedSignal, msg, &details); //FIXME this signal lumps together packets from the network and packets from higher layers! separate them
-            delete msg;
-        }
-    }
+    queueAccessor->startDequeingPacket();
 }
 
 void Ppp::clearQueue()
 {
-    // code would look slightly nicer with a pop() function that returns nullptr if empty
-    if (queueModule) {
-        queueModule->clear();    // clear request count
-        queueModule->requestPacket();
-    }
-    else {
-        txQueue.clear();
-    }
+    auto queue = queueAccessor->getQueue();
+    while (!queue->isEmpty())
+        delete queue->popPacket();
+    queueAccessor->startDequeingPacket();
+}
+
+bool Ppp::isDequeingPacketEnabled()
+{
+    return !endTransmissionEvent->isScheduled();
+}
+
+void Ppp::processDequedPacket(Packet *packet)
+{
+    startTransmitting(packet);
 }
 
 void Ppp::handleStopOperation(LifecycleOperation *operation)
 {
-    bool queueEmpty = queueModule ? queueModule->isEmpty() : txQueue.isEmpty();
-    if (!queueEmpty)
+    if (!queueAccessor->getQueue()->isEmpty())
         delayActiveOperationFinish(par("stopOperationTimeout"));
 }
 
