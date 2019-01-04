@@ -19,7 +19,7 @@
 #define __INET_QUEUEFILTER_H
 
 #include "inet/common/MatchableObject.h"
-#include "inet/common/queue/PacketQueue.h"
+#include "inet/common/newqueue/IPacketQueue.h"
 
 namespace inet {
 
@@ -37,7 +37,7 @@ class INET_API QueueFilter
   public:
     void setPattern(const char *pattern);
 
-    bool matches(const PacketQueue *queue) const;
+    bool matches(const inet::queue::IPacketQueue *queue) const;
 };
 
 } // namespace visualizer

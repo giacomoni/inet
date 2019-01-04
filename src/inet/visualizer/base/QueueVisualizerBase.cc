@@ -24,12 +24,13 @@ namespace visualizer {
 
 void QueueVisualizerBase::QueueVisitor::visit(cObject *object)
 {
-    if (auto queue = dynamic_cast<PacketQueue *>(object))
+    if (auto queue = dynamic_cast<inet::queue::IPacketQueue *>(object))
         queues.push_back(queue);
-    object->forEachChild(this);
+    else
+        object->forEachChild(this);
 }
 
-QueueVisualizerBase::QueueVisualization::QueueVisualization(PacketQueue *queue) :
+QueueVisualizerBase::QueueVisualization::QueueVisualization(inet::queue::IPacketQueue *queue) :
     queue(queue)
 {
 }
