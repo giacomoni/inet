@@ -22,6 +22,7 @@ simple DropTailQueue like IPacketQueue
     parameters:
         int frameCapacity;
         @class(queue::DropTailQueue);
+        @display("i=block/queue");
     gates:
         input in;
         output out;

@@ -21,6 +21,7 @@ simple InfiniteQueue like IPacketQueue
 {
     parameters:
         @class(queue::InfiniteQueue);
+        @display("i=block/queue");
     gates:
         input in;
         output out;

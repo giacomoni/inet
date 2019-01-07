@@ -21,6 +21,7 @@ module CompoundQueue like IPacketQueue
 {
     parameters:
 	    @class(queue::CompoundQueue);
+        @display("i=block/queue");
     gates:
         input in;
         output out;

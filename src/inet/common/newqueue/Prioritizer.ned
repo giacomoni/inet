@@ -21,6 +21,7 @@ simple Prioritizer
 {
     parameters:
         @class(queue::Prioritizer);
+        @display("i=block/join");
     gates:
         input in[];
         output out;

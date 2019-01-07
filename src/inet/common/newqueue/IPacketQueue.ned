@@ -19,6 +19,8 @@ package inet.common.newqueue;
 
 moduleinterface IPacketQueue
 {
+    parameters:
+        @display("i=block/queue");
     gates:
         input in;
         output out;

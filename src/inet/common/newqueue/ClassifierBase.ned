@@ -19,6 +19,8 @@ package inet.common.newqueue;
 
 simple ClassifierBase
 {
+    parameters:
+        @display("i=block/fork");
     gates:
         input in;
         output out[];
