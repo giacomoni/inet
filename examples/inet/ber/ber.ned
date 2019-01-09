@@ -7,6 +7,7 @@ package inet.examples.inet.ber;
 import inet.common.misc.ThruputMeteringChannel;
 import inet.networklayer.configurator.ipv4.Ipv4NetworkConfigurator;
 import inet.node.inet.StandardHost;
+import inet.visualizer.integrated.IntegratedCanvasVisualizer;
 
 
 network ber
@@ -14,7 +15,8 @@ network ber
     parameters:
         double n;
     types:
-        channel C extends ThruputMeteringChannel {
+        channel C extends ThruputMeteringChannel
+        {
             parameters:
                 datarate = 10Mbps;
                 delay = 0.565us;
@@ -22,6 +24,7 @@ network ber
                 thruputDisplayFormat = default("p b u");
         }
     submodules:
+        visualizer: IntegratedCanvasVisualizer;
         client: StandardHost {
             parameters:
                 @display("p=250,100");

@@ -22,16 +22,6 @@ namespace queue {
 
 Define_Module(InfiniteQueue);
 
-void InfiniteQueue::initialize()
-{
-    outputGate = gate("out");
-}
-
-void InfiniteQueue::handleMessage(cMessage *msg)
-{
-    pushPacket(check_and_cast<Packet *>(msg));
-}
-
 int InfiniteQueue::getNumPackets()
 {
     return queue.getLength();

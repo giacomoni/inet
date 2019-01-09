@@ -15,32 +15,40 @@
 // along with this program; if not, see http://www.gnu.org/licenses/.
 //
 
-#ifndef __INET_DROPTAILQUEUE_H
-#define __INET_DROPTAILQUEUE_H
-
-#include "inet/common/newqueue/PacketQueueBase.h"
+#include "inet/common/ModuleAccess.h"
+#include "inet/common/newqueue/Delayer.h"
 
 namespace inet {
 namespace queue {
 
-class INET_API DropTailQueue : public PacketQueueBase
+Define_Module(Delayer);
+
+void Delayer::initialize()
 {
-  protected:
-    int frameCapacity = -1;
-    cPacketQueue queue;
+    auto outGate = gate("out");
+    if (outGate->isConnected())
+        sink = dynamic_cast<IPacketSink *>(outGate->getPathEndGate()->getOwnerModule());
+    else
+        sink = getModuleFromPar<IPacketSink>(par("outModule"), this);
+}
 
-  protected:
-    virtual void initialize() override;
+void Delayer::handleMessage(cMessage *message)
+{
+    auto packet = check_and_cast<Packet *>(message);
+    if (packet->isSelfMessage()) {
+        if (sink == nullptr)
+            send(packet, "out");
+        else
+            sink->processPacket(packet);
+    }
+    else
+        processPacket(packet);
+}
 
-  public:
-    virtual int getFrameCapacity() const { return frameCapacity; }
-    virtual int getNumPackets() override;
-    virtual void pushPacket(Packet *packet) override;
-    virtual Packet *popPacket() override;
-};
+void Delayer::processPacket(Packet *packet)
+{
+    scheduleAt(simTime() + par("delay"), packet);
+}
 
 } // namespace queue
 } // namespace inet
-
-#endif // ifndef __INET_DROPTAILQUEUE_H
-

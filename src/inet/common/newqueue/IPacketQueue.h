@@ -23,6 +23,35 @@
 namespace inet {
 namespace queue {
 
+// van olyan amibol kieshet csomag barmikor
+// van olyan amibol csak akkor eshet ki, ha kered
+// van amitol meg lehet kerdezni, hogy mennyi van benne, van amitol nem
+// van amibe bele lehet tuszkolni csomagot, van amibe nem
+
+/**
+ * This class defines the interface for packet sources.
+ */
+class INET_API IPacketSource
+{
+  public:
+    /**
+     * Generates a packet from the source. The result must not be nullptr.
+     */
+    virtual Packet *generatePacket() = 0;
+};
+
+/**
+ * This class defines the interface for packet sinks.
+ */
+class INET_API IPacketSink
+{
+  public:
+    /**
+     * Processes a packet in the sink. The packet must not be nullptr.
+     */
+    virtual void processPacket(Packet *packet) = 0;
+};
+
 /**
  * This class defines the interface for packet queues.
  */

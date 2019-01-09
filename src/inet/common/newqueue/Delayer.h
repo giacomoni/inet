@@ -15,32 +15,27 @@
 // along with this program; if not, see http://www.gnu.org/licenses/.
 //
 
-#ifndef __INET_DROPTAILQUEUE_H
-#define __INET_DROPTAILQUEUE_H
+#ifndef __INET_DELAYER_H
+#define __INET_DELAYER_H
 
 #include "inet/common/newqueue/PacketQueueBase.h"
 
 namespace inet {
 namespace queue {
 
-class INET_API DropTailQueue : public PacketQueueBase
+class INET_API Delayer : public cSimpleModule, public IPacketSink
 {
   protected:
-    int frameCapacity = -1;
-    cPacketQueue queue;
+    IPacketSink *sink = nullptr;
 
   protected:
     virtual void initialize() override;
-
-  public:
-    virtual int getFrameCapacity() const { return frameCapacity; }
-    virtual int getNumPackets() override;
-    virtual void pushPacket(Packet *packet) override;
-    virtual Packet *popPacket() override;
+    virtual void handleMessage(cMessage *message) override;
+    virtual void processPacket(Packet *packet) override;
 };
 
 } // namespace queue
 } // namespace inet
 
-#endif // ifndef __INET_DROPTAILQUEUE_H
+#endif // ifndef __INET_DELAYER_H
 

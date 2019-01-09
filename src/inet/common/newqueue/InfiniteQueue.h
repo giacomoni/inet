@@ -27,11 +27,6 @@ class INET_API InfiniteQueue : public PacketQueueBase
 {
   protected:
     cPacketQueue queue;
-    cGate *outputGate = nullptr;
-
-  protected:
-    virtual void initialize() override;
-    virtual void handleMessage(cMessage *msg) override;
 
   public:
     virtual int getNumPackets() override;

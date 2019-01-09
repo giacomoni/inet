@@ -25,12 +25,6 @@ Define_Module(DropTailQueue);
 void DropTailQueue::initialize()
 {
     frameCapacity = par("frameCapacity");
-    outputGate = gate("out");
-}
-
-void DropTailQueue::handleMessage(cMessage *msg)
-{
-    pushPacket(check_and_cast<Packet *>(msg));
 }
 
 int DropTailQueue::getNumPackets()

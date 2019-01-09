@@ -15,32 +15,16 @@
 // along with this program; if not, see http://www.gnu.org/licenses/.
 //
 
-#ifndef __INET_DROPTAILQUEUE_H
-#define __INET_DROPTAILQUEUE_H
+package inet.common.newqueue;
 
-#include "inet/common/newqueue/PacketQueueBase.h"
-
-namespace inet {
-namespace queue {
-
-class INET_API DropTailQueue : public PacketQueueBase
+simple Delayer
 {
-  protected:
-    int frameCapacity = -1;
-    cPacketQueue queue;
-
-  protected:
-    virtual void initialize() override;
-
-  public:
-    virtual int getFrameCapacity() const { return frameCapacity; }
-    virtual int getNumPackets() override;
-    virtual void pushPacket(Packet *packet) override;
-    virtual Packet *popPacket() override;
-};
-
-} // namespace queue
-} // namespace inet
-
-#endif // ifndef __INET_DROPTAILQUEUE_H
-
+    parameters:
+        string outModule;
+        volatile double delay @unit(s);
+        @class(queue::Delayer);
+        @display("i=block/delay");
+    gates:
+        input in;
+        output out;
+}
