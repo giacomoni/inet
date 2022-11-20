@@ -1,0 +1,60 @@
+//
+// Copyright (C) 2004 OpenSim Ltd.
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+
+
+
+
+
+package inet.examples.inet.nclients;
+
+import inet.common.misc.ThruputMeteringChannel;
+import inet.networklayer.configurator.ipv4.Ipv4NetworkConfigurator;
+import inet.node.inet.Router;
+import inet.node.inet.StandardHost;
+
+
+network Dumbell
+{
+    parameters:
+        int n;
+    types:
+
+        channel ethernetline extends ThruputMeteringChannel
+        {
+            delay = 33.33ms;
+            datarate = 10Mbps;
+        }
+
+    submodules:
+        configurator: Ipv4NetworkConfigurator {
+            parameters:
+                @display("p=100,100;is=s");
+        }
+        r1: Router {
+            @display("p=400,250");
+        }
+        r2: Router {
+            @display("p=577,250");
+        }
+        cli[n]: StandardHost {
+            parameters:
+                @display("i=device/laptop;p=250,100,col,100");
+        }
+        srv[n]: StandardHost {
+            parameters:
+                @display("i=device/server;p=850,250");
+        }
+    connections:
+        for i=0..n-1 {
+            cli[i].pppg++ <--> ethernetline <--> r1.pppg++;
+        }
+        for i=0..n-1 {
+            srv[i].pppg++ <--> ethernetline <--> r2.pppg++;
+        }
+
+        r2.pppg++ <--> ethernetline <--> r1.pppg++;
+}
+

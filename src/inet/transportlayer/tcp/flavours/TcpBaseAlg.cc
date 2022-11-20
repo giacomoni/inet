@@ -64,6 +64,8 @@ simsignal_t TcpBaseAlg::srttSignal = cComponent::registerSignal("srtt"); // will
 simsignal_t TcpBaseAlg::rttvarSignal = cComponent::registerSignal("rttvar"); // will record RTT variance (rttvar)
 simsignal_t TcpBaseAlg::rtoSignal = cComponent::registerSignal("rto"); // will record retransmission timeout
 simsignal_t TcpBaseAlg::numRtosSignal = cComponent::registerSignal("numRtos"); // will record total number of RTOs
+simsignal_t TcpBaseAlg::recoverSignal = cComponent::registerSignal("recover"); // will record total number of RTOs
+
 
 TcpBaseAlg::TcpBaseAlg() : TcpAlgorithm(),
     state((TcpBaseAlgStateVariables *&)TcpAlgorithm::state)

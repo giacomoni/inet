@@ -183,7 +183,7 @@ struct TcpStateVariables
     uint32_t ts_recent = 0;         // RFC 1323, page 31: "Latest received Timestamp"
     uint32_t last_ack_sent = 0;     // RFC 1323, page 31: "Last ACK field sent"
     simtime_t time_last_data_sent;  // time at which the last data segment was sent (needed to compute the IDLE time for PAWS)
-
+	simtime_t last_rtt;
     // SACK related variables
     bool sack_support = false;      // set if the host supports selective acknowledgment (header option) (RFC 2018, 2883, 3517)
     bool sack_enabled = false;      // set if the connection uses selective acknowledgment (header option)
@@ -199,6 +199,7 @@ struct TcpStateVariables
     uint32_t recoveryPoint = 0;    // RFC 3517
     uint32_t sackedBytes = 0;    // number of sackedBytes
     uint32_t sackedBytes_old = 0;    // old number of sackedBytes - needed for RFC 3042 to check if last dupAck contained new sack information
+    uint32_t rescueRxt = 0;			// RFC 6675 "RescueRxt" is the highest sequence number which has been optimistically retransmitted 
     bool lossRecovery = false;    // indicates if algorithm is in loss recovery phase
 
     // queue management
@@ -230,8 +231,15 @@ struct TcpStateVariables
     bool sndAck = false; // set if sending Ack packet, used to set relevant info in controlInfo.
     bool rexmit = false; // set if retransmitting data, used to send not-ECT codepoint (rfc3168, p. 20)
     simtime_t eceReactionTime; // records the time of the last ECE reaction
-
+	
+	uint32_t max_burst = 1; // Maximum number of segments that can be sent per ack received.
     uint32_t dupthresh = 0; // used for TcpTahoe, TcpReno and SACK (RFC 3517)
+    
+     /// RFC 3782 variables
+    //@{
+    uint32_t recover = iss; ///< recover (RFC 3782)
+    bool firstPartialACK = false; ///< first partial acknowledgement (RFC 3782)
+    //@}
 };
 
 cplusplus(TcpStateVariables) {{

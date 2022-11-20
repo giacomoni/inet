@@ -1,4 +1,5 @@
 # local and generated files not to be committed
+.cproject
 doc/src/showcases
 doc/src/tutorials
 src/Makefile

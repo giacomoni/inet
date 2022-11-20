@@ -337,7 +337,8 @@ void TcpConnection::sendDataDuringLossRecoveryPhase(uint32_t congestionWindow)
     // segments as follows:
     // (...)
     // (C.5) If cwnd - pipe >= 1 SMSS, return to (C.1)"
-    while (((int)congestionWindow - (int)state->pipe) >= (int)state->snd_mss) { // Note: Typecast needed to avoid prohibited transmissions
+    uint32_t segmentsSent = 0;
+    while (((int)congestionWindow - (int)state->pipe) >= (int)state->snd_mss && ((state->max_burst - segmentsSent)>0)) { // Note: Typecast needed to avoid prohibited transmissions
         // RFC 3517 pages 7 and 8: "(C.1) The scoreboard MUST be queried via NextSeg () for the
         // sequence number range of the next segment to transmit (if any),
         // and the given segment sent.  If NextSeg () returns failure (no
@@ -354,6 +355,7 @@ void TcpConnection::sendDataDuringLossRecoveryPhase(uint32_t congestionWindow)
         // network must be updated by incrementing pipe by the number of
         // octets transmitted in (C.1)."
         state->pipe += sentBytes;
+        segmentsSent++;
     }
 }
 

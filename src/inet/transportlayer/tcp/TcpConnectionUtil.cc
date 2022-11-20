@@ -435,6 +435,7 @@ void TcpConnection::initConnection(TcpOpenCommand *openCmd)
 
 void TcpConnection::configureStateVariables()
 {
+    state->max_burst = tcpMain->par("max_burst");
     state->dupthresh = tcpMain->par("dupthresh");
     long advertisedWindowPar = tcpMain->par("advertisedWindow");
     state->ws_support = tcpMain->par("windowScalingSupport"); // if set, this means that current host supports WS (RFC 1323)
@@ -890,10 +891,12 @@ bool TcpConnection::sendData(uint32_t congestionWindow)
     EV_INFO << "May send " << bytesToSend << " bytes (effectiveWindow " << effectiveWin << ", in buffer " << buffered << " bytes)\n";
 
     // send whole segments
-    while (bytesToSend >= effectiveMss) {
+    uint32_t segmentsSent = 0;
+    while (bytesToSend >= effectiveMss && ((state->max_burst - segmentsSent) > 0)) {
         uint32_t sentBytes = sendSegment(effectiveMss);
         ASSERT(bytesToSend >= sentBytes);
         bytesToSend -= sentBytes;
+        segmentsSent++;
     }
 
     if (bytesToSend > 0) {
