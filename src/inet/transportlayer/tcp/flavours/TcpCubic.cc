@@ -268,6 +268,7 @@ void TcpCubic::receivedDataAck(uint32_t firstSeqAcked) {
 
     TcpTahoeRenoFamily::receivedDataAck(firstSeqAcked);
 
+    //Adjust rate:
     if (state->delay_min == 0
             || state->delay_min > state->last_rtt.inUnit(SIMTIME_MS))
         state->delay_min = state->last_rtt.inUnit(SIMTIME_MS);
@@ -333,6 +334,14 @@ void TcpCubic::receivedDataAck(uint32_t firstSeqAcked) {
         if (performSsCa) {
             // If ECN is not enabled or if ECN is enabled and received multiple ECE-Acks in
             // less than RTT, then perform slow start and congestion avoidance.
+            double rate;
+            if (state->snd_cwnd < state->ssthresh / 2) {
+                rate = 2.0 * (state->snd_cwnd * 8) / state->snd_mss
+                        / state->srtt.dbl();
+            } else {
+                rate = 1.2 * (state->snd_cwnd * 8) / state->snd_mss
+                        / state->srtt.dbl();
+            }
 
             if (state->snd_cwnd < state->ssthresh) {
                 EV_INFO
@@ -427,122 +436,138 @@ void TcpCubic::receivedDataAck(uint32_t firstSeqAcked) {
 void TcpCubic::receivedDuplicateAck() {
     TcpTahoeRenoFamily::receivedDuplicateAck();
 
-        if (state->dupacks == state->dupthresh) {
-            EV_INFO << "Reno on dupAcks == DUPTHRESH(=" << state->dupthresh << ": perform Fast Retransmit, and enter Fast Recovery:";
-
-            if (state->sack_enabled) {
-                // RFC 3517, page 6: "When a TCP sender receives the duplicate ACK corresponding to
-                // DupThresh ACKs, the scoreboard MUST be updated with the new SACK
-                // information (via Update ()).  If no previous loss event has occurred
-                // on the connection or the cumulative acknowledgment point is beyond
-                // the last value of RecoveryPoint, a loss recovery phase SHOULD be
-                // initiated, per the fast retransmit algorithm outlined in [RFC2581].
-                // The following steps MUST be taken:
-                //
-                // (1) RecoveryPoint = HighData
-                //
-                // When the TCP sender receives a cumulative ACK for this data octet
-                // the loss recovery phase is terminated."
-
-                // RFC 3517, page 8: "If an RTO occurs during loss recovery as specified in this document,
-                // RecoveryPoint MUST be set to HighData.  Further, the new value of
-                // RecoveryPoint MUST be preserved and the loss recovery algorithm
-                // outlined in this document MUST be terminated.  In addition, a new
-                // recovery phase (as described in section 5) MUST NOT be initiated
-                // until HighACK is greater than or equal to the new value of
-                // RecoveryPoint."
-                if (state->recoveryPoint == 0 || seqGE(state->snd_una, state->recoveryPoint)) { // HighACK = snd_una
-                    state->recoveryPoint = state->snd_max; // HighData = snd_max
-                    state->lossRecovery = true;
-                    EV_DETAIL << " recoveryPoint=" << state->recoveryPoint;
-                }
-            }
-            // RFC 2581, page 5:
-            // "After the fast retransmit algorithm sends what appears to be the
-            // missing segment, the "fast recovery" algorithm governs the
-            // transmission of new data until a non-duplicate ACK arrives.
-            // (...) the TCP sender can continue to transmit new
-            // segments (although transmission must continue using a reduced cwnd)."
-
-            // enter Fast Recovery
-            recalculateSlowStartThreshold();
-            // "set cwnd to ssthresh plus 3 * SMSS." (RFC 2581)
-            state->snd_cwnd = state->ssthresh;
-
-            conn->emit(cwndSignal, state->snd_cwnd);
-
-            EV_DETAIL << " set cwnd=" << state->snd_cwnd << ", ssthresh=" << state->ssthresh << "\n";
-
-            // Fast Retransmission: retransmit missing segment without waiting
-            // for the REXMIT timer to expire
-            conn->retransmitOneSegment(false);
-
-            // Do not restart REXMIT timer.
-            // Note: Restart of REXMIT timer on retransmission is not part of RFC 2581, however optional in RFC 3517 if sent during recovery.
-            // Resetting the REXMIT timer is discussed in RFC 2582/3782 (NewReno) and RFC 2988.
-
-            if (state->sack_enabled) {
-                // RFC 3517, page 7: "(4) Run SetPipe ()
-                //
-                // Set a "pipe" variable  to the number of outstanding octets
-                // currently "in the pipe"; this is the data which has been sent by
-                // the TCP sender but for which no cumulative or selective
-                // acknowledgment has been received and the data has not been
-                // determined to have been dropped in the network.  It is assumed
-                // that the data is still traversing the network path."
-                conn->setPipe();
-                // RFC 3517, page 7: "(5) In order to take advantage of potential additional available
-                // cwnd, proceed to step (C) below."
-                if (state->lossRecovery) {
-                    // RFC 3517, page 9: "Therefore we give implementers the latitude to use the standard
-                    // [RFC2988] style RTO management or, optionally, a more careful variant
-                    // that re-arms the RTO timer on each retransmission that is sent during
-                    // recovery MAY be used.  This provides a more conservative timer than
-                    // specified in [RFC2988], and so may not always be an attractive
-                    // alternative.  However, in some cases it may prevent needless
-                    // retransmissions, go-back-N transmission and further reduction of the
-                    // congestion window."
-                    // Note: Restart of REXMIT timer on retransmission is not part of RFC 2581, however optional in RFC 3517 if sent during recovery.
-                    EV_INFO << "Retransmission sent during recovery, restarting REXMIT timer.\n";
-                    restartRexmitTimer();
-
-                    // RFC 3517, page 7: "(C) If cwnd - pipe >= 1 SMSS the sender SHOULD transmit one or more
-                    // segments as follows:"
-                    if (((int)state->snd_cwnd - (int)state->pipe) >= (int)state->snd_mss) // Note: Typecast needed to avoid prohibited transmissions
-                        conn->sendDataDuringLossRecoveryPhase(state->snd_cwnd);
-                }
-            }
-
-            // try to transmit new segments (RFC 2581)
-            sendData(false);
+    if (!state->lossRecovery && state->snd_cwnd >= state->ssthresh) {
+        updateCubicCwnd(1);
+        if (state->cwnd_cnt >= state->cnt) {
+            state->snd_cwnd += state->snd_mss;
+            state->cwnd_cnt = 0;
+        } else {
+            state->cwnd_cnt++;
         }
-        else if (state->dupacks > state->dupthresh) {
+    }
+
+    if (state->dupacks == state->dupthresh) {
+        EV_INFO << "Reno on dupAcks == DUPTHRESH(=" << state->dupthresh
+                       << ": perform Fast Retransmit, and enter Fast Recovery:";
+
+        if (state->sack_enabled) {
+            // RFC 3517, page 6: "When a TCP sender receives the duplicate ACK corresponding to
+            // DupThresh ACKs, the scoreboard MUST be updated with the new SACK
+            // information (via Update ()).  If no previous loss event has occurred
+            // on the connection or the cumulative acknowledgment point is beyond
+            // the last value of RecoveryPoint, a loss recovery phase SHOULD be
+            // initiated, per the fast retransmit algorithm outlined in [RFC2581].
+            // The following steps MUST be taken:
             //
-            // Reno: For each additional duplicate ACK received, increment cwnd by SMSS.
-            // This artificially inflates the congestion window in order to reflect the
-            // additional segment that has left the network
+            // (1) RecoveryPoint = HighData
             //
+            // When the TCP sender receives a cumulative ACK for this data octet
+            // the loss recovery phase is terminated."
+
+            // RFC 3517, page 8: "If an RTO occurs during loss recovery as specified in this document,
+            // RecoveryPoint MUST be set to HighData.  Further, the new value of
+            // RecoveryPoint MUST be preserved and the loss recovery algorithm
+            // outlined in this document MUST be terminated.  In addition, a new
+            // recovery phase (as described in section 5) MUST NOT be initiated
+            // until HighACK is greater than or equal to the new value of
+            // RecoveryPoint."
+            if (state->recoveryPoint == 0
+                    || seqGE(state->snd_una, state->recoveryPoint)) { // HighACK = snd_una
+                state->recoveryPoint = state->snd_max; // HighData = snd_max
+                state->lossRecovery = true;
+                EV_DETAIL << " recoveryPoint=" << state->recoveryPoint;
+            }
+        }
+        // RFC 2581, page 5:
+        // "After the fast retransmit algorithm sends what appears to be the
+        // missing segment, the "fast recovery" algorithm governs the
+        // transmission of new data until a non-duplicate ACK arrives.
+        // (...) the TCP sender can continue to transmit new
+        // segments (although transmission must continue using a reduced cwnd)."
+
+        // enter Fast Recovery
+        recalculateSlowStartThreshold();
+        // "set cwnd to ssthresh plus 3 * SMSS." (RFC 2581)
+        state->snd_cwnd = state->ssthresh;
+
+        conn->emit(cwndSignal, state->snd_cwnd);
+
+        EV_DETAIL << " set cwnd=" << state->snd_cwnd << ", ssthresh="
+                         << state->ssthresh << "\n";
+
+        // Fast Retransmission: retransmit missing segment without waiting
+        // for the REXMIT timer to expire
+        conn->retransmitOneSegment(false);
+
+        // Do not restart REXMIT timer.
+        // Note: Restart of REXMIT timer on retransmission is not part of RFC 2581, however optional in RFC 3517 if sent during recovery.
+        // Resetting the REXMIT timer is discussed in RFC 2582/3782 (NewReno) and RFC 2988.
+
+        if (state->sack_enabled) {
+            // RFC 3517, page 7: "(4) Run SetPipe ()
+            //
+            // Set a "pipe" variable  to the number of outstanding octets
+            // currently "in the pipe"; this is the data which has been sent by
+            // the TCP sender but for which no cumulative or selective
+            // acknowledgment has been received and the data has not been
+            // determined to have been dropped in the network.  It is assumed
+            // that the data is still traversing the network path."
+            conn->setPipe();
+            // RFC 3517, page 7: "(5) In order to take advantage of potential additional available
+            // cwnd, proceed to step (C) below."
+            if (state->lossRecovery) {
+                // RFC 3517, page 9: "Therefore we give implementers the latitude to use the standard
+                // [RFC2988] style RTO management or, optionally, a more careful variant
+                // that re-arms the RTO timer on each retransmission that is sent during
+                // recovery MAY be used.  This provides a more conservative timer than
+                // specified in [RFC2988], and so may not always be an attractive
+                // alternative.  However, in some cases it may prevent needless
+                // retransmissions, go-back-N transmission and further reduction of the
+                // congestion window."
+                // Note: Restart of REXMIT timer on retransmission is not part of RFC 2581, however optional in RFC 3517 if sent during recovery.
+                EV_INFO
+                               << "Retransmission sent during recovery, restarting REXMIT timer.\n";
+                restartRexmitTimer();
+
+                // RFC 3517, page 7: "(C) If cwnd - pipe >= 1 SMSS the sender SHOULD transmit one or more
+                // segments as follows:"
+                if (((int) state->snd_cwnd - (int) state->pipe)
+                        >= (int) state->snd_mss) // Note: Typecast needed to avoid prohibited transmissions
+                    conn->sendDataDuringLossRecoveryPhase(state->snd_cwnd);
+            }
+        }
+
+        // try to transmit new segments (RFC 2581)
+        sendData(false);
+    } else if (state->dupacks > state->dupthresh) {
+        //
+        // Reno: For each additional duplicate ACK received, increment cwnd by SMSS.
+        // This artificially inflates the congestion window in order to reflect the
+        // additional segment that has left the network
+        //
 //            state->snd_cwnd += state->snd_mss;
-            EV_DETAIL << "Reno on dupAcks > DUPTHRESH(=" << state->dupthresh << ": Fast Recovery: inflating cwnd by SMSS, new cwnd=" << state->snd_cwnd << "\n";
+        EV_DETAIL << "Reno on dupAcks > DUPTHRESH(=" << state->dupthresh
+                         << ": Fast Recovery: inflating cwnd by SMSS, new cwnd="
+                         << state->snd_cwnd << "\n";
 
-            conn->emit(cwndSignal, state->snd_cwnd);
+        conn->emit(cwndSignal, state->snd_cwnd);
 
-            // Note: Steps (A) - (C) of RFC 3517, page 7 ("Once a TCP is in the loss recovery phase the following procedure MUST be used for each arriving ACK")
-            // should not be used here!
+        // Note: Steps (A) - (C) of RFC 3517, page 7 ("Once a TCP is in the loss recovery phase the following procedure MUST be used for each arriving ACK")
+        // should not be used here!
 
-            // RFC 3517, pages 7 and 8: "5.1 Retransmission Timeouts
-            // (...)
-            // If there are segments missing from the receiver's buffer following
-            // processing of the retransmitted segment, the corresponding ACK will
-            // contain SACK information.  In this case, a TCP sender SHOULD use this
-            // SACK information when determining what data should be sent in each
-            // segment of the slow start.  The exact algorithm for this selection is
-            // not specified in this document (specifically NextSeg () is
-            // inappropriate during slow start after an RTO).  A relatively
-            // straightforward approach to "filling in" the sequence space reported
-            // as missing should be a reasonable approach."
-            sendData(false);
-        }
+        // RFC 3517, pages 7 and 8: "5.1 Retransmission Timeouts
+        // (...)
+        // If there are segments missing from the receiver's buffer following
+        // processing of the retransmitted segment, the corresponding ACK will
+        // contain SACK information.  In this case, a TCP sender SHOULD use this
+        // SACK information when determining what data should be sent in each
+        // segment of the slow start.  The exact algorithm for this selection is
+        // not specified in this document (specifically NextSeg () is
+        // inappropriate during slow start after an RTO).  A relatively
+        // straightforward approach to "filling in" the sequence space reported
+        // as missing should be a reasonable approach."
+        sendData(false);
+    }
 }
 
 } //tcp

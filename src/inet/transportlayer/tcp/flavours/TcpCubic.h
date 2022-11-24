@@ -10,6 +10,7 @@
 
 #include "inet/transportlayer/tcp/flavours/TcpTahoeRenoFamily.h"
 #include "inet/transportlayer/tcp/flavours/TcpCubicState_m.h"
+#include "inet/transportlayer/tcp/PacedTcpConnection.h"
 #include <cmath>
 
 #define BICTCP_BETA_SCALE    1024   /* Scale factor beta calculation

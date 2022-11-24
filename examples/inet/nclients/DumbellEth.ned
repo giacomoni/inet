@@ -10,28 +10,24 @@
 
 package inet.examples.inet.nclients;
 
-import inet.common.misc.ThruputMeteringChannel;
 import inet.networklayer.configurator.ipv4.Ipv4NetworkConfigurator;
 import inet.node.inet.Router;
 import inet.node.inet.StandardHost;
+import ned.DatarateChannel;
+import inet.node.ethernet.EthernetSwitch;
 
 
-network Dumbell
+network DumbellEth
 {
     parameters:
         int n;
-    types:
 
-        channel ethernetline extends ThruputMeteringChannel
+    types:
+        channel NormalP extends DatarateChannel
         {
-            delay = 100ms;
-            datarate = 12Mbps;
-        }
-        
-        channel fiberline extends ThruputMeteringChannel
-        {
-            delay = 0ms;
-            datarate = 1000Gbps;
+            parameters:
+                per = 0;
+                ber = 0;
         }
 
     submodules:
@@ -39,28 +35,24 @@ network Dumbell
             parameters:
                 @display("p=100,100;is=s");
         }
-        r1: Router {
+        r1: EthernetSwitch {
             @display("p=400,250");
         }
-        r2: Router {
-            @display("p=577,250");
-        }
+
         cli[n]: StandardHost {
             parameters:
                 @display("i=device/laptop;p=250,100,col,100");
         }
-        srv[n]: StandardHost {
+        srv: StandardHost {
             parameters:
                 @display("i=device/server;p=850,250");
         }
     connections:
         for i=0..n-1 {
-            cli[i].pppg++ <--> fiberline <--> r1.pppg++;
+            cli[i].ethg++ <--> NormalP <--> r1.ethg++;
         }
-        for i=0..n-1 {
-            srv[i].pppg++ <--> fiberline <--> r2.pppg++;
-        }
-
-        r2.pppg++ <--> ethernetline <--> r1.pppg++;
+       
+         srv.ethg++ <--> NormalP <--> r1.ethg++;
+        
 }
 
