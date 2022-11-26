@@ -5,7 +5,7 @@
         <input pattern="/inet/examples/inet/nclients/results/General-*.sca"/>
     </inputs>
     <charts>
-        <chart icon="icons/full/obj/linechart.png" id="525852213" name="IncomingDataRate" template="linechart_mpl" type="MATPLOTLIB">
+        <chart icon="icons/full/obj/linechart.png" id="1520435832" name="IncomingDataRate" template="linechart_mpl" type="MATPLOTLIB">
             <script><![CDATA[import math
 from omnetpp.scave import results, chart, utils
 
@@ -634,7 +634,7 @@ utils.export_data_if_needed(df, props)
             <property name="image_export_width" value="6"/>
             <property name="matplotlibrc" value=""/>
         </chart>
-        <chart icon="icons/full/obj/linechart.png" id="1463224205" name="queueLength" template="linechart_mpl" type="MATPLOTLIB">
+        <chart icon="icons/full/obj/linechart.png" id="161067158" name="queueLength" template="linechart_mpl" type="MATPLOTLIB">
             <script><![CDATA[import math
 from omnetpp.scave import results, chart, utils
 
@@ -1263,7 +1263,7 @@ utils.export_data_if_needed(df, props)
             <property name="image_export_width" value="6"/>
             <property name="matplotlibrc" value=""/>
         </chart>
-        <chart icon="icons/full/obj/linechart.png" id="1666291360" name="cwnd" template="linechart_mpl" type="MATPLOTLIB">
+        <chart icon="icons/full/obj/linechart.png" id="2105140142" name="cwnd" template="linechart_mpl" type="MATPLOTLIB">
             <script><![CDATA[import math
 from omnetpp.scave import results, chart, utils
 
@@ -1892,7 +1892,7 @@ utils.export_data_if_needed(df, props)
             <property name="image_export_width" value="6"/>
             <property name="matplotlibrc" value=""/>
         </chart>
-        <chart icon="icons/full/obj/linechart.png" id="2111671223" name="seqNums" template="linechart_mpl" type="MATPLOTLIB">
+        <chart icon="icons/full/obj/linechart.png" id="830753442" name="seqNums" template="linechart_mpl" type="MATPLOTLIB">
             <script><![CDATA[import math
 from omnetpp.scave import results, chart, utils
 
@@ -2506,7 +2506,7 @@ utils.export_data_if_needed(df, props)
             <property name="matplotlibrc.axes.facecolor" value=""/>
             <property name="linewidth" value="1.5"/>
             <property name="legend_format" value=""/>
-            <property name="filter" value="type =~ vector AND runattr:experiment =~ General AND runattr:replication =~ &quot;#0&quot; AND (&#10;    (module =~ &quot;Dumbell.srv[0].tcp.conn-17&quot; AND name =~ sndAck:vector) OR&#10;    (module =~ &quot;Dumbell.cli[0].tcp.conn-16&quot; AND name =~ rcvAck:vector) OR&#10;    (module =~ &quot;Dumbell.cli[0].tcp.conn-16&quot; AND name =~ sndNxt:vector) OR&#10;    (module =~ &quot;Dumbell.cli[0].tcp.conn-16&quot; AND name =~ unacked:vector) OR&#10;    (module =~ &quot;Dumbell.srv[0].tcp.conn-17&quot; AND name =~ rcvSeq:vector) OR&#10;    (module =~ &quot;Dumbell.cli[0].tcp.conn-16&quot; AND name =~ cwnd:vector) OR&#10;    (module =~ &quot;Dumbell.cli[0].tcp.conn-16&quot; AND name =~ sackedBytes:vector) OR&#10;    (module =~ &quot;Dumbell.cli[0].tcp.conn-16&quot; AND name =~ pipe:vector)&#10;)"/>
+            <property name="filter" value="type =~ vector AND runattr:experiment =~ General AND runattr:replication =~ &quot;#0&quot; AND (&#10;    (module =~ &quot;Dumbell.srv[0].tcp.conn-17&quot; AND name =~ sndAck:vector) OR&#10;    (module =~ &quot;Dumbell.cli[0].tcp.conn-16&quot; AND name =~ rcvAck:vector) OR&#10;    (module =~ &quot;Dumbell.cli[0].tcp.conn-16&quot; AND name =~ sndNxt:vector) OR&#10;    (module =~ &quot;Dumbell.cli[0].tcp.conn-16&quot; AND name =~ unacked:vector) OR&#10;    (module =~ &quot;Dumbell.srv[0].tcp.conn-17&quot; AND name =~ rcvSeq:vector) OR&#10;    (module =~ &quot;Dumbell.cli[0].tcp.conn-16&quot; AND name =~ cwnd:vector) OR&#10;    (module =~ &quot;Dumbell.cli[0].tcp.conn-16&quot; AND name =~ sackedBytes:vector) OR&#10;    (module =~ &quot;Dumbell.cli[0].tcp.conn-16&quot; AND name =~ lossRecovery:vector) OR&#10;    (module =~ &quot;Dumbell.cli[0].tcp.conn-16&quot; AND name =~ pipe:vector)&#10;)"/>
             <property name="vector_start_time" value="22.5"/>
             <property name="linestyle" value="solid"/>
             <property name="markersize" value="5"/>
