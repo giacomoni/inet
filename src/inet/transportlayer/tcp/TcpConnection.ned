@@ -38,11 +38,27 @@ simple TcpConnection {
         @signal[rttvar];    // will record RTT variance (rttvar)
         @signal[rto];    // will record retransmission timeout
         @signal[numRtos];    // will record total number of RTOs
-
+        @signal[lossRecovery];    // will record changes to snd_cwnd
+		@signal[highRxt];
+		@signal[cnt];
+		@signal[lastMaxWindow];
+		@signal[originalPoint];
+		@signal[bicK];
+		@signal[cwndSeg];
+		
         @signal[load];   // will record load (currently only with DcTcp)
         @signal[calcLoad];    // will record calcLoad (currently only with DcTcp)
         @signal[markingProb];   // will record marking probability (currently only with DcTcp)
-
+		
+			    
+			    
+	    @statistic[cwndSeg](record=vector; interpolationmode=sample-hold);
+        @statistic[bicK](record=vector; interpolationmode=sample-hold);
+	    @statistic[originalPoint](record=vector; interpolationmode=sample-hold);
+		@statistic[lastMaxWindow](record=vector; interpolationmode=sample-hold);
+        @statistic[cnt](record=vector; interpolationmode=sample-hold);
+		@statistic[highRxt](record=vector; interpolationmode=sample-hold);
+		@statistic[lossRecovery](record=vector; interpolationmode=sample-hold);
         @statistic[state](record=vector; interpolationmode=sample-hold);
         @statistic[sndWnd](record=vector; interpolationmode=sample-hold);    // snd_wnd
         @statistic[rcvWnd](record=vector; interpolationmode=sample-hold);    // rcv_wnd

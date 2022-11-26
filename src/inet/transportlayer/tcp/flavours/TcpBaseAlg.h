@@ -56,6 +56,10 @@ class INET_API TcpBaseAlg : public TcpAlgorithm
     static simsignal_t rtoSignal; // will record retransmission timeout
     static simsignal_t numRtosSignal; // will record total number of RTOs
     static simsignal_t recoverSignal;
+    static simsignal_t lossRecoverySignal;
+    static simsignal_t highRxtSignal;
+
+
   protected:
     /** @name Process REXMIT, PERSIST, DELAYED-ACK and KEEP-ALIVE timers */
     //@{
