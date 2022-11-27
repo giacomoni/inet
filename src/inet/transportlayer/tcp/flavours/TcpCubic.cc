@@ -107,13 +107,16 @@ void TcpCubic::updateCubicCwnd(uint32_t acked) {
 
     uint32_t cwnd = state->snd_cwnd / state->snd_mss;
 
+    //In the kernel code this is the number of jiffies.
+    //The number of jiffies is incremented HZ times per second
+    //tcp_time_stamp is in ms unit. The jiffy variable would match if HZ = 1000
     uint32_t tcp_time_stamp = simTime().inUnit(SIMTIME_MS);
 
     state->ack_cnt++; /* count the number of ACKs */
 
-//    if (state->last_cwnd == cwnd
-//            && (int32_t) (tcp_time_stamp - state->last_time) <= HZ / 32)
-//        return;
+    if (state->last_cwnd == cwnd
+            && (int32_t) (tcp_time_stamp - state->last_time) <= HZ / 32)
+        return;
 
     state->last_cwnd = cwnd;
     state->last_time = tcp_time_stamp;
@@ -392,6 +395,18 @@ void TcpCubic::receivedDuplicateAck() {
 
     } else if (state->dupacks > state->dupthresh) {
         conn->setPipe();
+
+        // perform Congestion Avoidance (RFC 2581)
+        updateCubicCwnd(1);
+        if (state->cwnd_cnt >= state->cnt) {
+            state->snd_cwnd += state->snd_mss;
+            state->cwnd_cnt = 0;
+        } else {
+            state->cwnd_cnt++;
+        }
+
+        conn->emit(cwndSignal, state->snd_cwnd);
+        conn->emit(ssthreshSignal, state->ssthresh);
 
         if (((int) (state->snd_cwnd / state->snd_mss)
                 - (int) (state->pipe / (state->snd_mss - 12))) >= 1) { // Note: Typecast needed to avoid prohibited transmissions

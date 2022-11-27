@@ -22,7 +22,7 @@
                       */
 #define BICTCP_HZ  10  /* BIC HZ 2^10 = 1024 */
 
-#define HZ 1000
+#define HZ 600
 
 
 namespace inet {

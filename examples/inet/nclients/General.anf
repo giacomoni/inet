@@ -5,7 +5,7 @@
         <input pattern="/inet/examples/inet/nclients/results/General-*.sca"/>
     </inputs>
     <charts>
-        <chart icon="icons/full/obj/linechart.png" id="1520435832" name="IncomingDataRate" template="linechart_mpl" type="MATPLOTLIB">
+        <chart icon="icons/full/obj/linechart.png" id="1188479994" name="IncomingDataRate" template="linechart_mpl" type="MATPLOTLIB">
             <script><![CDATA[import math
 from omnetpp.scave import results, chart, utils
 
@@ -634,7 +634,7 @@ utils.export_data_if_needed(df, props)
             <property name="image_export_width" value="6"/>
             <property name="matplotlibrc" value=""/>
         </chart>
-        <chart icon="icons/full/obj/linechart.png" id="161067158" name="queueLength" template="linechart_mpl" type="MATPLOTLIB">
+        <chart icon="icons/full/obj/linechart.png" id="2115303418" name="queueLength" template="linechart_mpl" type="MATPLOTLIB">
             <script><![CDATA[import math
 from omnetpp.scave import results, chart, utils
 
@@ -1263,7 +1263,7 @@ utils.export_data_if_needed(df, props)
             <property name="image_export_width" value="6"/>
             <property name="matplotlibrc" value=""/>
         </chart>
-        <chart icon="icons/full/obj/linechart.png" id="2105140142" name="cwnd" template="linechart_mpl" type="MATPLOTLIB">
+        <chart icon="icons/full/obj/linechart.png" id="986725669" name="cwnd" template="linechart_mpl" type="MATPLOTLIB">
             <script><![CDATA[import math
 from omnetpp.scave import results, chart, utils
 
@@ -1853,32 +1853,32 @@ utils.export_data_if_needed(df, props)
             <property name="matplotlibrc.legend.frameon" value="true"/>
             <property name="matplotlibrc.legend.fancybox" value="false"/>
             <property name="grid_show" value="true"/>
-            <property name="vector_end_time" value=""/>
+            <property name="vector_end_time" value="39.42"/>
             <property name="linecolor" value=""/>
             <property name="matplotlibrc.figure.facecolor" value=""/>
             <property name="legend_prefer_result_titles" value="true"/>
             <property name="legend_manual" value="false"/>
             <property name="yaxis_title" value="cwnd (bytes)"/>
             <property name="legend_replacements" value=""/>
-            <property name="title" value="max_burst = 8"/>
+            <property name="title" value="HZ 600"/>
             <property name="legend_automatic" value="true"/>
             <property name="vector_operations" value=""/>
             <property name="cycle_seed" value="0"/>
             <property name="yaxis_log" value="false"/>
             <property name="image_export_height" value="4"/>
             <property name="xaxis_log" value="false"/>
-            <property name="legend_placement" value="upper right"/>
+            <property name="legend_placement" value="outside bottom center"/>
             <property name="data_export_filename" value=""/>
             <property name="xaxis_title" value="time (s)"/>
             <property name="grid_density" value="Major"/>
             <property name="yaxis_min" value=""/>
-            <property name="image_export_filename" value="cwnd_burst_8"/>
+            <property name="image_export_filename" value="hz_600_both"/>
             <property name="xaxis_min" value=""/>
             <property name="matplotlibrc.axes.facecolor" value=""/>
             <property name="linewidth" value="1.0"/>
             <property name="legend_format" value=""/>
             <property name="filter" value="module =~ &quot;*.cli[*].tcp.*&quot; AND name =~ &quot;cwnd:vector&quot;"/>
-            <property name="vector_start_time" value=""/>
+            <property name="vector_start_time" value="23.27"/>
             <property name="linestyle" value="solid"/>
             <property name="markersize" value="5"/>
             <property name="drawstyle" value="auto"/>
@@ -1892,7 +1892,7 @@ utils.export_data_if_needed(df, props)
             <property name="image_export_width" value="6"/>
             <property name="matplotlibrc" value=""/>
         </chart>
-        <chart icon="icons/full/obj/linechart.png" id="830753442" name="seqNums" template="linechart_mpl" type="MATPLOTLIB">
+        <chart icon="icons/full/obj/linechart.png" id="1839821788" name="seqNums" template="linechart_mpl" type="MATPLOTLIB">
             <script><![CDATA[import math
 from omnetpp.scave import results, chart, utils
 
