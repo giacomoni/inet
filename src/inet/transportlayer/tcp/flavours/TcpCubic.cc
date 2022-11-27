@@ -269,83 +269,72 @@ void TcpCubic::processRexmitTimer(TcpEventCode &event) {
 }
 
 void TcpCubic::receivedDataAck(uint32_t firstSeqAcked) {
-
     TcpTahoeRenoFamily::receivedDataAck(firstSeqAcked);
 
-    //Adjust rate:
     if (state->delay_min == 0
             || state->delay_min > state->last_rtt.inUnit(SIMTIME_MS))
         state->delay_min = state->last_rtt.inUnit(SIMTIME_MS);
 
-    if (!state->lossRecovery) {
-        if (state->snd_cwnd < state->ssthresh) {
-            EV_INFO
-                           << "cwnd <= ssthresh: Slow Start: increasing cwnd by one SMSS bytes to ";
+    if (state->snd_cwnd < state->ssthresh) {
+        EV_INFO
+                       << "cwnd <= ssthresh: Slow Start: increasing cwnd by one SMSS bytes to ";
 
-            // perform Slow Start. RFC 2581: "During slow start, a TCP increments cwnd
-            // by at most SMSS bytes for each ACK received that acknowledges new data."
-            state->snd_cwnd += state->snd_mss;
+        // perform Slow Start. RFC 2581: "During slow start, a TCP increments cwnd
+        // by at most SMSS bytes for each ACK received that acknowledges new data."
+        state->snd_cwnd += state->snd_mss;
 
-            conn->emit(cwndSignal, state->snd_cwnd);
-            conn->emit(ssthreshSignal, state->ssthresh);
+        conn->emit(cwndSignal, state->snd_cwnd);
+        conn->emit(ssthreshSignal, state->ssthresh);
 
-            EV_INFO << "cwnd=" << state->snd_cwnd << "\n";
-        } else {
-            // perform Congestion Avoidance (RFC 2581)
-            updateCubicCwnd(1);
-            if (state->cwnd_cnt >= state->cnt) {
-                state->snd_cwnd += state->snd_mss;
-                state->cwnd_cnt = 0;
-            } else {
-                state->cwnd_cnt++;
-            }
-
-            conn->emit(cwndSignal, state->snd_cwnd);
-            conn->emit(ssthreshSignal, state->ssthresh);
-
-            //
-            // Note: some implementations use extra additive constant mss / 8 here
-            // which is known to be incorrect (RFC 2581 p5)
-            //
-            // Note 2: RFC 3465 (experimental) "Appropriate Byte Counting" (ABC)
-            // would require maintaining a bytes_acked variable here which we don't do
-            //
-
-            EV_INFO
-                           << "cwnd > ssthresh: Congestion Avoidance: increasing cwnd linearly, to "
-                           << state->snd_cwnd << "\n";
-        }
+        EV_INFO << "cwnd=" << state->snd_cwnd << "\n";
     } else {
-        if (state->sack_enabled) {
+        // perform Congestion Avoidance (RFC 2581)
+        updateCubicCwnd(1);
+        if (state->cwnd_cnt >= state->cnt) {
+            state->snd_cwnd += state->snd_mss;
+            state->cwnd_cnt = 0;
+        } else {
+            state->cwnd_cnt++;
+        }
 
-            if (seqGE(state->snd_una, state->recoveryPoint)) {
-                EV_INFO << "Loss Recovery terminated.\n";
-                state->lossRecovery = false;
-                conn->emit(lossRecoverySignal, 0);
-            } else {
-                conn->setPipe();
+        conn->emit(cwndSignal, state->snd_cwnd);
+        conn->emit(ssthreshSignal, state->ssthresh);
 
-                // RFC 3517, page 7: "(C) If cwnd - pipe >= 1 SMSS the sender SHOULD transmit one or more
-                // segments as follows:"
-                if (((int) (state->snd_cwnd / state->snd_mss)
-                        - (int) (state->pipe / (state->snd_mss - 12))) >= 1) // Note: Typecast needed to avoid prohibited transmissions
-                    conn->sendDataDuringLossRecoveryPhase(state->snd_cwnd);
-            }
+        //
+        // Note: some implementations use extra additive constant mss / 8 here
+        // which is known to be incorrect (RFC 2581 p5)
+        //
+        // Note 2: RFC 3465 (experimental) "Appropriate Byte Counting" (ABC)
+        // would require maintaining a bytes_acked variable here which we don't do
+        //
 
+        EV_INFO
+                       << "cwnd > ssthresh: Congestion Avoidance: increasing cwnd linearly, to "
+                       << state->snd_cwnd << "\n";
+    }
+
+    // Check if recovery phase has ended
+    if (state->lossRecovery && state->sack_enabled) {
+        if (seqGE(state->snd_una, state->recoveryPoint)) {
+            EV_INFO << "Loss Recovery terminated.\n";
+            state->lossRecovery = false;
+            conn->emit(lossRecoverySignal, 0);
         }
     }
-    // RFC 3517, pages 7 and 8: "5.1 Retransmission Timeouts
-    // (...)
-    // If there are segments missing from the receiver's buffer following
-    // processing of the retransmitted segment, the corresponding ACK will
-    // contain SACK information.  In this case, a TCP sender SHOULD use this
-    // SACK information when determining what data should be sent in each
-    // segment of the slow start.  The exact algorithm for this selection is
-    // not specified in this document (specifically NextSeg () is
-    // inappropriate during slow start after an RTO).  A relatively
-    // straightforward approach to "filling in" the sequence space reported
-    // as missing should be a reasonable approach."
-    sendData(false);
+
+    // Send data, either in the recovery mode or normal mode
+    if (state->lossRecovery) {
+        conn->setPipe();
+
+        // RFC 3517, page 7: "(C) If cwnd - pipe >= 1 SMSS the sender SHOULD transmit one or more
+        // segments as follows:"
+        if (((int) (state->snd_cwnd / state->snd_mss)
+                - (int) (state->pipe / (state->snd_mss - 12))) >= 1) // Note: Typecast needed to avoid prohibited transmissions
+            conn->sendDataDuringLossRecoveryPhase(state->snd_cwnd);
+    } else {
+        sendData(false);
+    }
+
     conn->emit(cwndSegSignal, state->snd_cwnd / state->snd_mss);
 
 }
@@ -359,7 +348,7 @@ void TcpCubic::receivedDuplicateAck() {
 //      on the connection or the cumulative acknowledgment point is beyond
 //      the last value of RecoveryPoint, a loss recovery phase SHOULD be
 //      initiated, per the fast retransmit algorithm outlined in [RFC2581].
-    if (state->dupacks == state->dupthresh) {
+    if (state->dupacks >= state->dupthresh) {
         if (!state->lossRecovery
                 && (state->recoveryPoint == 0
                         || seqGE(state->snd_una, state->recoveryPoint))) {
@@ -384,18 +373,6 @@ void TcpCubic::receivedDuplicateAck() {
             conn->retransmitOneSegment(false);
             conn->emit(highRxtSignal, state->highRxt);
         }
-
-        conn->setPipe();
-
-        if (((int) (state->snd_cwnd / state->snd_mss)
-                - (int) (state->pipe / (state->snd_mss - 12))) >= 1) { // Note: Typecast needed to avoid prohibited transmissions
-            conn->sendDataDuringLossRecoveryPhase(state->snd_cwnd);
-            restartRexmitTimer();
-        }
-
-    } else if (state->dupacks > state->dupthresh) {
-        conn->setPipe();
-
         // perform Congestion Avoidance (RFC 2581)
         updateCubicCwnd(1);
         if (state->cwnd_cnt >= state->cnt) {
@@ -408,14 +385,17 @@ void TcpCubic::receivedDuplicateAck() {
         conn->emit(cwndSignal, state->snd_cwnd);
         conn->emit(ssthreshSignal, state->ssthresh);
 
+    }
+
+    if (state->lossRecovery) {
+        conn->setPipe();
+
         if (((int) (state->snd_cwnd / state->snd_mss)
                 - (int) (state->pipe / (state->snd_mss - 12))) >= 1) { // Note: Typecast needed to avoid prohibited transmissions
             conn->sendDataDuringLossRecoveryPhase(state->snd_cwnd);
             restartRexmitTimer();
         }
-
     }
-    sendData(false);
 }
 
 } //tcp
