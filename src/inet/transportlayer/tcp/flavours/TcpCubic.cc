@@ -111,9 +111,9 @@ void TcpCubic::updateCubicCwnd(uint32_t acked) {
 
     state->ack_cnt++; /* count the number of ACKs */
 
-    if (state->last_cwnd == cwnd
-            && (int32_t) (tcp_time_stamp - state->last_time) <= HZ / 32)
-        return;
+//    if (state->last_cwnd == cwnd
+//            && (int32_t) (tcp_time_stamp - state->last_time) <= HZ / 32)
+//        return;
 
     state->last_cwnd = cwnd;
     state->last_time = tcp_time_stamp;
