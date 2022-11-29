@@ -58,6 +58,10 @@ struct TcpBaseAlgStateVariables extends TcpStateVariables
     uint32_t recover = iss; ///< recover (RFC 3782)
     bool firstPartialACK = false; ///< first partial acknowledgement (RFC 3782)
     //@}
+    
+    uint32_t cnt = 0;		// increase cwnd by 1 after cnt ACKs 
+    uint32_t cwnd_cnt = 0; // Increase CC of 1 MSS when cwnd_cnt == cnt
+    
 };
 
 cplusplus(TcpBaseAlgStateVariables) {{

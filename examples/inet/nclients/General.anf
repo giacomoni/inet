@@ -5,7 +5,7 @@
         <input pattern="/inet/examples/inet/nclients/results/General-*.sca"/>
     </inputs>
     <charts>
-        <chart icon="icons/full/obj/linechart.png" id="21319851" name="IncomingDataRate" template="linechart_mpl" type="MATPLOTLIB">
+        <chart icon="icons/full/obj/linechart.png" id="2103961019" name="IncomingDataRate" template="linechart_mpl" type="MATPLOTLIB">
             <script><![CDATA[import math
 from omnetpp.scave import results, chart, utils
 
@@ -634,7 +634,7 @@ utils.export_data_if_needed(df, props)
             <property name="image_export_width" value="6"/>
             <property name="matplotlibrc" value=""/>
         </chart>
-        <chart icon="icons/full/obj/linechart.png" id="616535488" name="queueLength" template="linechart_mpl" type="MATPLOTLIB">
+        <chart icon="icons/full/obj/linechart.png" id="1444975490" name="queueLength" template="linechart_mpl" type="MATPLOTLIB">
             <script><![CDATA[import math
 from omnetpp.scave import results, chart, utils
 
@@ -1263,7 +1263,7 @@ utils.export_data_if_needed(df, props)
             <property name="image_export_width" value="6"/>
             <property name="matplotlibrc" value=""/>
         </chart>
-        <chart icon="icons/full/obj/linechart.png" id="1601790892" name="cwnd" template="linechart_mpl" type="MATPLOTLIB">
+        <chart icon="icons/full/obj/linechart.png" id="492362460" name="cwnd" template="linechart_mpl" type="MATPLOTLIB">
             <script><![CDATA[import math
 from omnetpp.scave import results, chart, utils
 
@@ -1892,7 +1892,7 @@ utils.export_data_if_needed(df, props)
             <property name="image_export_width" value="6"/>
             <property name="matplotlibrc" value=""/>
         </chart>
-        <chart icon="icons/full/obj/linechart.png" id="2139313138" name="seqNums" template="linechart_mpl" type="MATPLOTLIB">
+        <chart icon="icons/full/obj/linechart.png" id="31317032" name="seqNums" template="linechart_mpl" type="MATPLOTLIB">
             <script><![CDATA[import math
 from omnetpp.scave import results, chart, utils
 

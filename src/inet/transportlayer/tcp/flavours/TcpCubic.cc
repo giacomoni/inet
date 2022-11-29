@@ -178,17 +178,16 @@ void TcpCubic::updateCubicCwnd(uint32_t acked) {
         state->cnt = 100 * cwnd; /* very small increment*/
     }
 
-    if (state->delay_min > 0) {
-        /* max increment = Smax * rtt / 0.1  */
-        min_cnt = (cwnd * HZ * 8)
-                / (10 * state->max_increment * state->delay_min);
-        if (state->cnt < min_cnt)
-            state->cnt = min_cnt;
-    }
+//    if (state->delay_min > 0) {
+//        /* max increment = Smax * rtt / 0.1  */
+//        min_cnt = (cwnd * HZ * 8)
+//                / (10 * state->max_increment * state->delay_min);
+//        if (state->cnt < min_cnt)
+//            state->cnt = min_cnt;
+//    }
 
-    /* slow start and low utilization  */
-    if (state->loss_cwnd == 0) /* could be aggressive in slow start */
-        state->cnt = 50;
+    if (state->last_max_cwnd == 0 && state->cnt > 20)
+            state->cnt = 20;   /* increase cwnd 5%
 
     /* TCP Friendly */
     if (state->tcp_friendliness) {
@@ -206,6 +205,8 @@ void TcpCubic::updateCubicCwnd(uint32_t acked) {
                 state->cnt = max_cnt;
         }
     }
+
+    state->cnt = std::max(state->cnt, 2U);
 
     conn->emit(cntSignal, state->cnt);
 }
@@ -373,14 +374,14 @@ void TcpCubic::receivedDuplicateAck() {
             conn->retransmitOneSegment(false);
             conn->emit(highRxtSignal, state->highRxt);
         }
-        // perform Congestion Avoidance (RFC 2581)
-        updateCubicCwnd(1);
-        if (state->cwnd_cnt >= state->cnt) {
-            state->snd_cwnd += state->snd_mss;
-            state->cwnd_cnt = 0;
-        } else {
-            state->cwnd_cnt++;
-        }
+//        // perform Congestion Avoidance (RFC 2581)
+//        updateCubicCwnd(1);
+//        if (state->cwnd_cnt >= state->cnt) {
+//            state->snd_cwnd += state->snd_mss;
+//            state->cwnd_cnt = 0;
+//        } else {
+//            state->cwnd_cnt++;
+//        }
 
         conn->emit(cwndSignal, state->snd_cwnd);
         conn->emit(ssthreshSignal, state->ssthresh);

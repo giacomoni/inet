@@ -39,13 +39,12 @@ struct TcpCubicStateVariables extends TcpTahoeRenoFamilyStateVariables
    int bic_scale = 41;
    
     // turn on/off tcp friendliness
-   int tcp_friendliness = 0;
+   int tcp_friendliness = 1;
    
    uint32_t cube_rtt_scale;
    uint32_t beta_scale;
    uint64_t cube_factor;
   
-   uint32_t	cnt;		// increase cwnd by 1 after cnt ACKs 
    uint32_t last_max_cwnd; // last maximum snd_cwnd (segments)
    uint32_t loss_cwnd; // Cwnd of first loss after slow start
    uint32_t	last_cwnd;	// the last snd_cwnd 
@@ -58,7 +57,7 @@ struct TcpCubicStateVariables extends TcpTahoeRenoFamilyStateVariables
    uint32_t	tcp_cwnd;	// estimated tcp cwnd 
 
    
-   uint32_t cwnd_cnt; // Increase CC of 1 MSS when cwnd_cnt == cnt
+
    
    bool isConcave = false;
    bool isFriendly = false;
