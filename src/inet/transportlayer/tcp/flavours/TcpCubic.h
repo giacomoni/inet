@@ -16,13 +16,12 @@
 #define BICTCP_BETA_SCALE    1024   /* Scale factor beta calculation
                      * max_cwnd = snd_cwnd * beta
                      */
-#define BICTCP_B  4    /*
-                      * In binary search,
-                      * go to point (max+min)/N
-                      */
+
 #define BICTCP_HZ  10  /* BIC HZ 2^10 = 1024 */
 
-#define HZ 600
+#define BITS_PER_LONG 64
+
+#define HZ 1000
 
 
 namespace inet {
@@ -56,8 +55,8 @@ protected:
     virtual void reset();
     uint32_t calculateCubicRoot(uint64_t number) ;
     virtual void updateCubicCwnd(uint32_t acked);
-
-
+    virtual int32_t fls64(uint64_t x);
+    virtual uint64_t __fls(uint64_t word);
 
 public:
     /** Ctor */

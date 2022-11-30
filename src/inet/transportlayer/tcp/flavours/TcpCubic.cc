@@ -73,7 +73,7 @@ void TcpCubic::initialize() {
     state->beta_scale = 8 * (BICTCP_BETA_SCALE + state->beta) / 3
             / (BICTCP_BETA_SCALE - state->beta);
 
-    state->cube_rtt_scale = (state->bic_scale << 3) / 10; /* 1024*c/rtt */
+    state->cube_rtt_scale = (state->bic_scale << 3); /* 1024*c/rtt */
 
     /* calculate the "K" for (wmax-cwnd) = c/rtt * K^3
      *  so K = cubic_root( (wmax-cwnd)*rtt/c )
@@ -96,14 +96,91 @@ void TcpCubic::initialize() {
 
 }
 
-uint32_t TcpCubic::calculateCubicRoot(uint64_t number) {
-    return std::cbrt(number);
+uint64_t TcpCubic::__fls(uint64_t word)
+{
+    int32_t num = BITS_PER_LONG - 1;
+
+    if (!(word & (~0ul << 32))) {
+        num -= 32;
+        word <<= 32;
+    }
+
+    if (!(word & (~0ul << (BITS_PER_LONG-16)))) {
+        num -= 16;
+        word <<= 16;
+    }
+    if (!(word & (~0ul << (BITS_PER_LONG-8)))) {
+        num -= 8;
+        word <<= 8;
+    }
+    if (!(word & (~0ul << (BITS_PER_LONG-4)))) {
+        num -= 4;
+        word <<= 4;
+    }
+    if (!(word & (~0ul << (BITS_PER_LONG-2)))) {
+        num -= 2;
+        word <<= 2;
+    }
+    if (!(word & (~0ul << (BITS_PER_LONG-1))))
+        num -= 1;
+    return num;
+}
+
+int TcpCubic::fls64(uint64_t x)
+{
+    if (x == 0)
+        return 0;
+    return __fls(x) + 1;
+}
+
+
+uint32_t TcpCubic::calculateCubicRoot(uint64_t a) {
+    uint32_t x, b, shift;
+        /*
+         * cbrt(x) MSB values for x MSB values in [0..63].
+         * Precomputed then refined by hand - Willy Tarreau
+         *
+         * For x in [0..63],
+         *   v = cbrt(x << 18) - 1
+         *   cbrt(x) = (v[x] + 10) >> 6
+         */
+        static const uint8_t v[] = {
+            /* 0x00 */    0,   54,   54,   54,  118,  118,  118,  118,
+            /* 0x08 */  123,  129,  134,  138,  143,  147,  151,  156,
+            /* 0x10 */  157,  161,  164,  168,  170,  173,  176,  179,
+            /* 0x18 */  181,  185,  187,  190,  192,  194,  197,  199,
+            /* 0x20 */  200,  202,  204,  206,  209,  211,  213,  215,
+            /* 0x28 */  217,  219,  221,  222,  224,  225,  227,  229,
+            /* 0x30 */  231,  232,  234,  236,  237,  239,  240,  242,
+            /* 0x38 */  244,  245,  246,  248,  250,  251,  252,  254,
+        };
+
+        b = fls64(a);
+        if (b < 7) {
+            /* a in [0..63] */
+            return ((uint32_t)v[(uint32_t)a] + 35) >> 6;
+        }
+
+        b = ((b * 84) >> 8) - 1;
+        shift = (a >> (b * 3));
+
+        x = ((uint32_t)(((uint32_t)v[shift] + 10) << b)) >> 6;
+
+        /*
+         * Newton-Raphson iteration
+         *                         2
+         * x    = ( 2 * x  +  a / x  ) / 3
+         *  k+1          k         k
+         */
+        x = (2 * x + (uint32_t)(a /((uint64_t)x * (uint64_t)(x - 1))));
+        x = ((x * 341) >> 10);
+        return x;
 }
 
 void TcpCubic::updateCubicCwnd(uint32_t acked) {
 
-    uint64_t offs;
-    uint32_t delta, t, bic_target, min_cnt, max_cnt;
+    uint64_t offs, t;
+    uint32_t delta, bic_target, max_cnt;
 
     uint32_t cwnd = state->snd_cwnd / state->snd_mss;
 
@@ -118,94 +195,92 @@ void TcpCubic::updateCubicCwnd(uint32_t acked) {
             && (int32_t) (tcp_time_stamp - state->last_time) <= HZ / 32)
         return;
 
-    state->last_cwnd = cwnd;
-    state->last_time = tcp_time_stamp;
 
-    if (state->epoch_start == 0) {
-        state->epoch_start = tcp_time_stamp; /* record the beginning of an epoch */
-        state->ack_cnt = 1; /* start counting */
-        state->tcp_cwnd = cwnd; /* syn with cubic */
+    if (!(state->epoch_start && tcp_time_stamp == state->last_time)) {
 
-        if (state->last_max_cwnd <= cwnd) {
-            state->bic_K = 0;
-            state->bic_origin_point = cwnd;
+        state->last_cwnd = cwnd;
+        state->last_time = tcp_time_stamp;
+
+        if (state->epoch_start == 0) {
+            state->epoch_start = tcp_time_stamp; /* record the beginning of an epoch */
+            state->ack_cnt = 1; /* start counting */
+            state->tcp_cwnd = cwnd; /* syn with cubic */
+
+            if (state->last_max_cwnd <= cwnd) {
+                state->bic_K = 0;
+                state->bic_origin_point = cwnd;
+            } else {
+                /* Compute new K based on
+                 * (wmax-cwnd) * (srtt>>3 / HZ) / c * 2^(3*bictcp_HZ)
+                 */
+                state->bic_K = calculateCubicRoot(
+                        state->cube_factor * (state->last_max_cwnd - cwnd));
+                state->bic_origin_point = state->last_max_cwnd;
+            }
+        }
+
+        /* cubic function - calc*/
+        /* calculate c * time^3 / rtt,
+         *  while considering overflow in calculation of time^3
+         * (so time^3 is done by using 64 bit)
+         * and without the support of division of 64bit numbers
+         * (so all divisions are done by using 32 bit)
+         *  also NOTE the unit of those veriables
+         *    time  = (t - K) / 2^bictcp_HZ
+         *    c = bic_scale >> 10
+         * rtt  = (srtt >> 3) / HZ
+         * !!! The following code does not have overflow problems,
+         * if the cwnd < 1 million packets !!!
+         */
+
+        t = (int32_t)(tcp_time_stamp - state->epoch_start);
+        t += state->delay_min/1000;
+        /* change the unit from HZ to bictcp_HZ */
+        t <<= BICTCP_HZ;
+        t /= HZ;
+
+        if (t < state->bic_K) /* t - K */
+            offs = state->bic_K - t;
+        else
+            offs = t - state->bic_K;
+
+        /* c/rtt * (t-K)^3 */
+        delta = (state->cube_rtt_scale * offs * offs * offs)
+                >> (10 + 3 * BICTCP_HZ);
+        if (t < state->bic_K) /* below origin*/
+            bic_target = state->bic_origin_point - delta;
+        else
+            /* above origin*/
+            bic_target = state->bic_origin_point + delta;
+
+        /* cubic function - calc bictcp_cnt*/
+        if (bic_target > cwnd) {
+            state->cnt = cwnd / (bic_target - cwnd);
         } else {
-            /* Compute new K based on
-             * (wmax-cwnd) * (srtt>>3 / HZ) / c * 2^(3*bictcp_HZ)
-             */
-            state->bic_K = calculateCubicRoot(
-                    state->cube_factor * (state->last_max_cwnd - cwnd));
-            state->bic_origin_point = state->last_max_cwnd;
+            state->cnt = 100 * cwnd; /* very small increment*/
         }
+
+
+        if (state->last_max_cwnd == 0 && state->cnt > 20)
+            state->cnt = 20;
     }
 
-    /* cubic function - calc*/
-    /* calculate c * time^3 / rtt,
-     *  while considering overflow in calculation of time^3
-     * (so time^3 is done by using 64 bit)
-     * and without the support of division of 64bit numbers
-     * (so all divisions are done by using 32 bit)
-     *  also NOTE the unit of those veriables
-     *    time  = (t - K) / 2^bictcp_HZ
-     *    c = bic_scale >> 10
-     * rtt  = (srtt >> 3) / HZ
-     * !!! The following code does not have overflow problems,
-     * if the cwnd < 1 million packets !!!
-     */
-
-    /* change the unit from HZ to bictcp_HZ */
-    t = ((tcp_time_stamp + state->delay_min - state->epoch_start) << BICTCP_HZ)
-            / HZ;
-
-    if (t < state->bic_K) /* t - K */
-        offs = state->bic_K - t;
-    else
-        offs = t - state->bic_K;
-
-    /* c/rtt * (t-K)^3 */
-    delta = (state->cube_rtt_scale * offs * offs * offs)
-            >> (10 + 3 * BICTCP_HZ);
-    if (t < state->bic_K) /* below origin*/
-        bic_target = state->bic_origin_point - delta;
-    else
-        /* above origin*/
-        bic_target = state->bic_origin_point + delta;
-
-    /* cubic function - calc bictcp_cnt*/
-    if (bic_target > cwnd) {
-        state->cnt = cwnd / (bic_target - cwnd);
-    } else {
-        state->cnt = 100 * cwnd; /* very small increment*/
-    }
-
-//    if (state->delay_min > 0) {
-//        /* max increment = Smax * rtt / 0.1  */
-//        min_cnt = (cwnd * HZ * 8)
-//                / (10 * state->max_increment * state->delay_min);
-//        if (state->cnt < min_cnt)
-//            state->cnt = min_cnt;
-//    }
-
-    if (state->last_max_cwnd == 0 && state->cnt > 20)
-            state->cnt = 20;   /* increase cwnd 5%
-
-    /* TCP Friendly */
     if (state->tcp_friendliness) {
-        uint32_t scale = state->beta_scale;
-        delta = (cwnd * scale) >> 3;
-        while (state->ack_cnt > delta) { /* update tcp cwnd */
-            state->ack_cnt -= delta;
-            state->tcp_cwnd++;
-        }
+            uint32_t scale = state->beta_scale;
 
-        if (state->tcp_cwnd > cwnd) { /* if bic is slower than tcp */
-            delta = state->tcp_cwnd - cwnd;
-            max_cnt = cwnd / delta;
-            if (state->cnt > max_cnt)
-                state->cnt = max_cnt;
-        }
+            delta = (cwnd * scale) >> 3;
+            while (state->ack_cnt > delta) {       /* update tcp cwnd */
+                state->ack_cnt -= delta;
+                state->tcp_cwnd++;
+            }
+
+            if (state->tcp_cwnd > cwnd) {  /* if bic is slower than tcp */
+                delta = state->tcp_cwnd - cwnd;
+                max_cnt = cwnd / delta;
+                if (state->cnt > max_cnt)
+                    state->cnt = max_cnt;
+            }
     }
-
     state->cnt = std::max(state->cnt, 2U);
 
     conn->emit(cntSignal, state->cnt);
@@ -272,10 +347,11 @@ void TcpCubic::processRexmitTimer(TcpEventCode &event) {
 void TcpCubic::receivedDataAck(uint32_t firstSeqAcked) {
     TcpTahoeRenoFamily::receivedDataAck(firstSeqAcked);
 
-    if (state->delay_min == 0
-            || state->delay_min > state->last_rtt.inUnit(SIMTIME_MS))
-        state->delay_min = state->last_rtt.inUnit(SIMTIME_MS);
+//    if (state->delay_min == 0
+//            || state->delay_min > state->srtt.inUnit(SIMTIME_US))
+//        state->delay_min = state->srtt.inUnit(SIMTIME_US);
 
+    state->delay_min = state->srtt.inUnit(SIMTIME_US);
     if (state->snd_cwnd < state->ssthresh) {
         EV_INFO
                        << "cwnd <= ssthresh: Slow Start: increasing cwnd by one SMSS bytes to ";
@@ -394,7 +470,6 @@ void TcpCubic::receivedDuplicateAck() {
         if (((int) (state->snd_cwnd / state->snd_mss)
                 - (int) (state->pipe / (state->snd_mss - 12))) >= 1) { // Note: Typecast needed to avoid prohibited transmissions
             conn->sendDataDuringLossRecoveryPhase(state->snd_cwnd);
-            restartRexmitTimer();
         }
     }
 }

@@ -24,8 +24,8 @@ network Dumbell
 
         channel ethernetline extends ThruputMeteringChannel
         {
-            delay = 1ms;
-            datarate = 256Mbps;
+            delay = 41ms;
+            datarate = 128Mbps;
         }
         
         channel fiberline extends ThruputMeteringChannel
