@@ -98,13 +98,24 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
     }
     else {
         auto lastElem = std::prev(rexmitQueue.end());
-        if(end == fromSeqNum && !lastElem->sacked && !lastElem->rexmitted){
-            lastElem->endSeqNum = toSeqNum;
-            found = true;
-            fromSeqNum = toSeqNum;
+        if(end == fromSeqNum){
+            if(!lastElem->sacked && !lastElem->rexmitted){
+                lastElem->endSeqNum = toSeqNum;
+                found = true;
+                fromSeqNum = toSeqNum;
+            }else{
+                region.beginSeqNum = fromSeqNum;
+                region.endSeqNum = toSeqNum;
+                region.sacked = false;
+                region.rexmitted = false;
+                rexmitQueue.push_back(region);
+                found = true;
+                fromSeqNum = toSeqNum;
+            }
         }else{
 
             auto i = rexmitQueue.begin();
+
 
             while (i != rexmitQueue.end() && seqLE(i->endSeqNum, fromSeqNum))
                 i++;
