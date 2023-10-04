@@ -818,6 +818,8 @@ uint32_t TcpConnection::sendSegment(uint32_t bytes)
     if (state->sack_enabled)
         rexmitQueue->enqueueSentData(old_snd_nxt, state->snd_nxt);
 
+    emit(rexmitQueueSize, rexmitQueue->getQueueLength());
+
     // add header options and update header length (from tcpseg_temp)
     for (uint i = 0; i < tmpTcpHeader->getHeaderOptionArraySize(); i++)
         tcpHeader->appendHeaderOption(tmpTcpHeader->getHeaderOption(i)->dup());

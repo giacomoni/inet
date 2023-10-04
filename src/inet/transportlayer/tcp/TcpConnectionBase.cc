@@ -42,6 +42,12 @@ simsignal_t TcpConnection::tcpRcvQueueBytesSignal = registerSignal("tcpRcvQueueB
 simsignal_t TcpConnection::tcpRcvQueueDropsSignal = registerSignal("tcpRcvQueueDrops"); // number of drops in tcp receive queue
 simsignal_t TcpConnection::tcpRcvPayloadBytesSignal = registerSignal("tcpRcvPayloadBytes"); // amount of payload bytes received (including duplicates, out of order etc) for TCP throughput
 
+simsignal_t TcpConnection::isLostMs = registerSignal("isLostDuration");
+simsignal_t TcpConnection::setPipeMs = registerSignal("setPipeDuration");
+simsignal_t TcpConnection::nextSegMs = registerSignal("nextSegMsDuration");
+simsignal_t TcpConnection::rexmitQueueSize = registerSignal("rexmitQueueSize");
+
+
 TcpStateVariables::~TcpStateVariables()
 {
 }

@@ -130,6 +130,8 @@ bool TcpConnection::processSACKOption(const Ptr<const TcpHeader> &tcpHeader,
 bool TcpConnection::isLost(uint32_t seqNum) {
     ASSERT(state->sack_enabled);
 
+    auto t1 = high_resolution_clock::now();
+
     // RFC 3517, page 3: "This routine returns whether the given sequence number is
     // considered to be lost.  The routine returns true when either
     // DupThresh discontiguous SACKed sequences have arrived above
@@ -143,11 +145,17 @@ bool TcpConnection::isLost(uint32_t seqNum) {
             || rexmitQueue->getAmountOfSackedBytes(seqNum)
                     >= (state->dupthresh * state->snd_mss));
 
+    auto t1 = high_resolution_clock::now();
+    auto ms_int = duration_cast<milliseconds>(t2 - t1);
+
+    emit(isLostMs, ms_int);
+
     return isLost;
 }
 
 void TcpConnection::setPipe() {
     ASSERT(state->sack_enabled);
+    auto t1 = high_resolution_clock::now();
 
     // RFC 3517, pages 1 and 2: "
     // "HighACK" is the sequence number of the highest byte of data that
@@ -211,10 +219,16 @@ void TcpConnection::setPipe() {
     }
 
     emit(pipeSignal, state->pipe);
+
+    auto t1 = high_resolution_clock::now();
+    auto ms_int = duration_cast<milliseconds>(t2 - t1);
+
+    emit(setPipeMs, ms_int);
 }
 
 bool TcpConnection::nextSeg(uint32_t &seqNum) {
     ASSERT(state->sack_enabled);
+    auto t1 = high_resolution_clock::now();
 
     // RFC 3517, page 5: "This routine uses the scoreboard data structure maintained by the
     // Update() function to determine what to transmit based on the SACK
@@ -256,6 +270,11 @@ bool TcpConnection::nextSeg(uint32_t &seqNum) {
             if (isLost(s2)) { // 1.a and 1.b are true, see above "for" statement
                 seqNum = s2;
 
+                auto t1 = high_resolution_clock::now();
+                auto ms_int = duration_cast<milliseconds>(t2 - t1);
+
+                emit(nextSegMs, ms_int);
+
                 return true;
             }
 
@@ -277,6 +296,11 @@ bool TcpConnection::nextSeg(uint32_t &seqNum) {
 
         if (buffered > 0 && effectiveWin >= state->snd_mss) {
             seqNum = state->snd_max; // HighData = snd_max
+
+            auto t1 = high_resolution_clock::now();
+            auto ms_int = duration_cast<milliseconds>(t2 - t1);
+
+            emit(nextSegMs, ms_int);
 
             return true;
         }
@@ -317,6 +341,11 @@ bool TcpConnection::nextSeg(uint32_t &seqNum) {
             if (!sacked) {
                 // 1.a and 1.b are true, see above "for" statement
                 seqNum = s3;
+
+                auto t1 = high_resolution_clock::now();
+                auto ms_int = duration_cast<milliseconds>(t2 - t1);
+
+                emit(nextSegMs, ms_int);
 
                 return true;
             }

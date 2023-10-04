@@ -958,6 +958,8 @@ TcpEventCode TcpConnection::processSegmentInSynSent(Packet *tcpSegment, const Pt
             if (state->sack_enabled)
                 rexmitQueue->discardUpTo(state->snd_una);
 
+            emit(rexmitQueueSize, rexmitQueue->getQueueLength());
+
             // although not mentioned in RFC 793, seems like we have to pick up
             // initial snd_wnd from the segment here.
             updateWndInfo(tcpHeader, true);
@@ -1114,6 +1116,8 @@ TcpEventCode TcpConnection::processRstInSynReceived(const Ptr<const TcpHeader>& 
     if (state->sack_enabled)
         rexmitQueue->discardUpTo(rexmitQueue->getBufferEndSeq()); // flush rexmit queue
 
+    emit(rexmitQueueSize, rexmitQueue->getQueueLength());
+
     if (state->active) {
         // signal "connection refused"
         sendIndicationToApp(TCP_I_CONNECTION_REFUSED);
@@ -1240,6 +1244,8 @@ bool TcpConnection::processAckInEstabEtc(Packet *tcpSegment, const Ptr<const Tcp
         // acked data no longer needed in rexmit queue
         if (state->sack_enabled)
             rexmitQueue->discardUpTo(discardUpToSeq);
+
+        emit(rexmitQueueSize, rexmitQueue->getQueueLength());
 
         updateWndInfo(tcpHeader);
 

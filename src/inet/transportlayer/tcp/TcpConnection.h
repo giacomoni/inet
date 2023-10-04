@@ -14,6 +14,13 @@
 #include "inet/transportlayer/tcp/TcpConnectionState_m.h"
 #include "inet/transportlayer/tcp_common/TcpHeader.h"
 
+#include <chrono>
+
+using std::chrono::high_resolution_clock;
+using std::chrono::duration_cast;
+using std::chrono::duration;
+using std::chrono::milliseconds;
+
 namespace inet {
 
 class TcpCommand;
@@ -109,6 +116,12 @@ class INET_API TcpConnection : public cSimpleModule
     static simsignal_t tcpRcvQueueBytesSignal; // current amount of used bytes in tcp receive queue
     static simsignal_t tcpRcvQueueDropsSignal; // number of drops in tcp receive queue
     static simsignal_t tcpRcvPayloadBytesSignal; // amount of payload bytes received (including duplicates, out of order etc) for TCP throughput
+
+    //Signals for rexmit queue performance profile.
+    static simsignal_t rexmitQueueSize;
+    static simsignal_t isLostMs;
+    static simsignal_t setPipeMs;
+    static simsignal_t nextSegMs;
 
     // connection identification by apps: socketId
     int socketId = -1; // identifies connection within the app
