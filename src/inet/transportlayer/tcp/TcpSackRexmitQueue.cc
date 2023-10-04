@@ -11,44 +11,50 @@ namespace inet {
 
 namespace tcp {
 
-TcpSackRexmitQueue::TcpSackRexmitQueue() {
+TcpSackRexmitQueue::TcpSackRexmitQueue()
+{
     conn = nullptr;
     begin = end = 0;
 }
 
-TcpSackRexmitQueue::~TcpSackRexmitQueue() {
+TcpSackRexmitQueue::~TcpSackRexmitQueue()
+{
     while (!rexmitQueue.empty())
         rexmitQueue.pop_front();
 }
 
-void TcpSackRexmitQueue::init(uint32_t seqNum) {
+void TcpSackRexmitQueue::init(uint32_t seqNum)
+{
     begin = seqNum;
     end = seqNum;
 }
 
-std::string TcpSackRexmitQueue::str() const {
+std::string TcpSackRexmitQueue::str() const
+{
     std::stringstream out;
 
     out << "[" << begin << ".." << end << ")";
     return out.str();
 }
 
-std::string TcpSackRexmitQueue::detailedInfo() const {
+std::string TcpSackRexmitQueue::detailedInfo() const
+{
     std::stringstream out;
     out << str() << endl;
 
     uint j = 1;
 
-    for (const auto &elem : rexmitQueue) {
+    for (const auto& elem : rexmitQueue) {
         out << j << ". region: [" << elem.beginSeqNum << ".." << elem.endSeqNum
-                << ") \t sacked=" << elem.sacked << "\t rexmitted="
-                << elem.rexmitted << endl;
+            << ") \t sacked=" << elem.sacked << "\t rexmitted=" << elem.rexmitted
+            << endl;
         j++;
     }
     return out.str();
 }
 
-void TcpSackRexmitQueue::discardUpTo(uint32_t seqNum) {
+void TcpSackRexmitQueue::discardUpTo(uint32_t seqNum)
+{
     ASSERT(seqLE(begin, seqNum) && seqLE(seqNum, end));
 
     if (!rexmitQueue.empty()) {
@@ -58,9 +64,7 @@ void TcpSackRexmitQueue::discardUpTo(uint32_t seqNum) {
             i = rexmitQueue.erase(i);
 
         if (i != rexmitQueue.end()) {
-            ASSERT(
-                    seqLE(i->beginSeqNum, seqNum)
-                            && seqLess(seqNum, i->endSeqNum));
+            ASSERT(seqLE(i->beginSeqNum, seqNum) && seqLess(seqNum, i->endSeqNum));
             i->beginSeqNum = seqNum;
         }
     }
@@ -71,17 +75,17 @@ void TcpSackRexmitQueue::discardUpTo(uint32_t seqNum) {
     ASSERT(checkQueue());
 }
 
-void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum,
-        uint32_t toSeqNum) {
+void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
+{
     ASSERT(seqLE(begin, fromSeqNum) && seqLE(fromSeqNum, end));
 
     bool found = false;
     Region region;
 
-    EV_INFO << "rexmitQ: " << str() << " enqueueSentData [" << fromSeqNum
-                   << ".." << toSeqNum << ")\n";
+    EV_INFO << "rexmitQ: " << str() << " enqueueSentData [" << fromSeqNum << ".." << toSeqNum << ")\n";
 
     ASSERT(seqLess(fromSeqNum, toSeqNum));
+
 
     if (rexmitQueue.empty()) {
         region.beginSeqNum = fromSeqNum;
@@ -91,26 +95,22 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum,
         rexmitQueue.push_back(region);
         found = true;
         fromSeqNum = toSeqNum;
-    } else {
+    }
+    else {
         auto lastElem = std::prev(rexmitQueue.end());
-        if (end == fromSeqNum && !lastElem->rexmitted && !lastElem->sacked) {
+        if(end == fromSeqNum && !lastElem->sacked && !lastElem->rexmitted){
             lastElem->endSeqNum = toSeqNum;
             found = true;
             fromSeqNum = toSeqNum;
-        } else {
+        }else{
+
             auto i = rexmitQueue.begin();
 
             while (i != rexmitQueue.end() && seqLE(i->endSeqNum, fromSeqNum))
                 i++;
 
             ASSERT(i != rexmitQueue.end());
-            ASSERT(
-                    seqLE(i->beginSeqNum, fromSeqNum)
-                            && seqLess(fromSeqNum, i->endSeqNum));
-
-            bool prevRexmitted = i->rexmitted;
-            bool prevSacked = i->sacked;
-            auto j = i;
+            ASSERT(seqLE(i->beginSeqNum, fromSeqNum) && seqLess(fromSeqNum, i->endSeqNum));
 
             if (i->beginSeqNum != fromSeqNum) {
                 // chunk item
@@ -124,23 +124,13 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum,
                 i->rexmitted = true;
                 fromSeqNum = i->endSeqNum;
                 found = true;
-
-                if(prevRexmitted == i->rexmitted && prevSacked == i->sacked){
-                    prevRexmitted = i->rexmitted;
-                    prevSacked = i->sacked;
-                    j->endSeqNum = i->endSeqNum;
-                    i = rexmitQueue.erase(i);
-                }else{
-                    j = i++;
-                }
+                i++;
             }
 
             if (fromSeqNum != toSeqNum) {
                 bool beforeEnd = (i != rexmitQueue.end());
 
-                ASSERT(
-                        i == rexmitQueue.end()
-                                || seqLess(i->beginSeqNum, toSeqNum));
+                ASSERT(i == rexmitQueue.end() || seqLess(i->beginSeqNum, toSeqNum));
 
                 region.beginSeqNum = fromSeqNum;
                 region.endSeqNum = toSeqNum;
@@ -155,11 +145,11 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum,
             }
         }
     }
+
     ASSERT(fromSeqNum == toSeqNum);
 
     if (!found) {
-        EV_DEBUG << "Not found enqueueSentData(" << fromSeqNum << ", "
-                        << toSeqNum << ")\nThe Queue is:\n" << detailedInfo();
+        EV_DEBUG << "Not found enqueueSentData(" << fromSeqNum << ", " << toSeqNum << ")\nThe Queue is:\n" << detailedInfo();
     }
 
     ASSERT(found);
@@ -173,11 +163,12 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum,
 //    tcpEV << "rexmitQ: rexmitQLength=" << getQueueLength() << "\n";
 }
 
-bool TcpSackRexmitQueue::checkQueue() const {
+bool TcpSackRexmitQueue::checkQueue() const
+{
     uint32_t b = begin;
     bool f = true;
 
-    for (const auto &elem : rexmitQueue) {
+    for (const auto& elem : rexmitQueue) {
         f = f && (b == elem.beginSeqNum);
         f = f && seqLess(elem.beginSeqNum, elem.endSeqNum);
         b = elem.endSeqNum;
@@ -192,7 +183,8 @@ bool TcpSackRexmitQueue::checkQueue() const {
     return f;
 }
 
-void TcpSackRexmitQueue::setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum) {
+void TcpSackRexmitQueue::setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum)
+{
     if (seqLess(fromSeqNum, begin))
         fromSeqNum = begin;
 
@@ -208,8 +200,7 @@ void TcpSackRexmitQueue::setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum) {
         while (i != rexmitQueue.end() && seqLE(i->endSeqNum, fromSeqNum))
             i++;
 
-        ASSERT(i != rexmitQueue.end() && seqLE(i->beginSeqNum, fromSeqNum)
-                        && seqLess(fromSeqNum, i->endSeqNum));
+        ASSERT(i != rexmitQueue.end() && seqLE(i->beginSeqNum, fromSeqNum) && seqLess(fromSeqNum, i->endSeqNum));
 
         if (i->beginSeqNum != fromSeqNum) {
             Region region = *i;
@@ -228,8 +219,7 @@ void TcpSackRexmitQueue::setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum) {
             i++;
         }
 
-        if (i != rexmitQueue.end() && seqLess(i->beginSeqNum, toSeqNum)
-                && seqLess(toSeqNum, i->endSeqNum)) {
+        if (i != rexmitQueue.end() && seqLess(i->beginSeqNum, toSeqNum) && seqLess(toSeqNum, i->endSeqNum)) {
             Region region = *i;
 
             region.endSeqNum = toSeqNum;
@@ -240,14 +230,13 @@ void TcpSackRexmitQueue::setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum) {
     }
 
     if (!found)
-        EV_DETAIL << "FAILED to set sacked bit for region: [" << fromSeqNum
-                         << ".." << toSeqNum
-                         << "). Not found in retransmission queue.\n";
+        EV_DETAIL << "FAILED to set sacked bit for region: [" << fromSeqNum << ".." << toSeqNum << "). Not found in retransmission queue.\n";
 
     ASSERT(checkQueue());
 }
 
-bool TcpSackRexmitQueue::getSackedBit(uint32_t seqNum) const {
+bool TcpSackRexmitQueue::getSackedBit(uint32_t seqNum) const
+{
     ASSERT(seqLE(begin, seqNum) && seqLE(seqNum, end));
 
     RexmitQueue::const_iterator i = rexmitQueue.begin();
@@ -258,16 +247,14 @@ bool TcpSackRexmitQueue::getSackedBit(uint32_t seqNum) const {
     while (i != rexmitQueue.end() && seqLE(i->endSeqNum, seqNum))
         i++;
 
-    ASSERT(
-            (i != rexmitQueue.end()) && seqLE(i->beginSeqNum, seqNum)
-                    && seqLess(seqNum, i->endSeqNum));
+    ASSERT((i != rexmitQueue.end()) && seqLE(i->beginSeqNum, seqNum) && seqLess(seqNum, i->endSeqNum));
 
     return i->sacked;
 }
 
-uint32_t TcpSackRexmitQueue::getHighestSackedSeqNum() const {
-    for (RexmitQueue::const_reverse_iterator i = rexmitQueue.rbegin();
-            i != rexmitQueue.rend(); i++) {
+uint32_t TcpSackRexmitQueue::getHighestSackedSeqNum() const
+{
+    for (RexmitQueue::const_reverse_iterator i = rexmitQueue.rbegin(); i != rexmitQueue.rend(); i++) {
         if (i->sacked)
             return i->endSeqNum;
     }
@@ -275,9 +262,9 @@ uint32_t TcpSackRexmitQueue::getHighestSackedSeqNum() const {
     return begin;
 }
 
-uint32_t TcpSackRexmitQueue::getHighestRexmittedSeqNum() const {
-    for (RexmitQueue::const_reverse_iterator i = rexmitQueue.rbegin();
-            i != rexmitQueue.rend(); i++) {
+uint32_t TcpSackRexmitQueue::getHighestRexmittedSeqNum() const
+{
+    for (RexmitQueue::const_reverse_iterator i = rexmitQueue.rbegin(); i != rexmitQueue.rend(); i++) {
         if (i->rexmitted)
             return i->endSeqNum;
     }
@@ -285,8 +272,8 @@ uint32_t TcpSackRexmitQueue::getHighestRexmittedSeqNum() const {
     return begin;
 }
 
-uint32_t TcpSackRexmitQueue::checkRexmitQueueForSackedOrRexmittedSegments(
-        uint32_t fromSeqNum) const {
+uint32_t TcpSackRexmitQueue::checkRexmitQueueForSackedOrRexmittedSegments(uint32_t fromSeqNum) const
+{
     ASSERT(seqLE(begin, fromSeqNum) && seqLE(fromSeqNum, end));
 
     if (rexmitQueue.empty() || (end == fromSeqNum))
@@ -299,9 +286,7 @@ uint32_t TcpSackRexmitQueue::checkRexmitQueueForSackedOrRexmittedSegments(
         i++;
 
     while (i != rexmitQueue.end() && ((i->sacked || i->rexmitted))) {
-        ASSERT(
-                seqLE(i->beginSeqNum, fromSeqNum)
-                        && seqLess(fromSeqNum, i->endSeqNum));
+        ASSERT(seqLE(i->beginSeqNum, fromSeqNum) && seqLess(fromSeqNum, i->endSeqNum));
 
         bytes += (i->endSeqNum - fromSeqNum);
         fromSeqNum = i->endSeqNum;
@@ -311,20 +296,23 @@ uint32_t TcpSackRexmitQueue::checkRexmitQueueForSackedOrRexmittedSegments(
     return bytes;
 }
 
-void TcpSackRexmitQueue::resetSackedBit() {
-    for (auto &elem : rexmitQueue)
+void TcpSackRexmitQueue::resetSackedBit()
+{
+    for (auto& elem : rexmitQueue)
         elem.sacked = false; // reset sacked bit
 }
 
-void TcpSackRexmitQueue::resetRexmittedBit() {
-    for (auto &elem : rexmitQueue)
+void TcpSackRexmitQueue::resetRexmittedBit()
+{
+    for (auto& elem : rexmitQueue)
         elem.rexmitted = false; // reset rexmitted bit
 }
 
-uint32_t TcpSackRexmitQueue::getTotalAmountOfSackedBytes() const {
+uint32_t TcpSackRexmitQueue::getTotalAmountOfSackedBytes() const
+{
     uint32_t bytes = 0;
 
-    for (const auto &elem : rexmitQueue) {
+    for (const auto& elem : rexmitQueue) {
         if (elem.sacked)
             bytes += (elem.endSeqNum - elem.beginSeqNum);
     }
@@ -332,7 +320,8 @@ uint32_t TcpSackRexmitQueue::getTotalAmountOfSackedBytes() const {
     return bytes;
 }
 
-uint32_t TcpSackRexmitQueue::getAmountOfSackedBytes(uint32_t fromSeqNum) const {
+uint32_t TcpSackRexmitQueue::getAmountOfSackedBytes(uint32_t fromSeqNum) const
+{
     ASSERT(seqLE(begin, fromSeqNum) && seqLE(fromSeqNum, end));
 
     uint32_t bytes = 0;
@@ -343,16 +332,17 @@ uint32_t TcpSackRexmitQueue::getAmountOfSackedBytes(uint32_t fromSeqNum) const {
             bytes += (i->endSeqNum - i->beginSeqNum);
     }
 
-    if (i != rexmitQueue.rend() && seqLess(i->beginSeqNum, fromSeqNum)
-            && seqLess(fromSeqNum, i->endSeqNum) && i->sacked) {
+    if (i != rexmitQueue.rend()
+        && seqLess(i->beginSeqNum, fromSeqNum) && seqLess(fromSeqNum, i->endSeqNum) && i->sacked)
+    {
         bytes += (i->endSeqNum - fromSeqNum);
     }
 
     return bytes;
 }
 
-uint32_t TcpSackRexmitQueue::getNumOfDiscontiguousSacks(
-        uint32_t fromSeqNum) const {
+uint32_t TcpSackRexmitQueue::getNumOfDiscontiguousSacks(uint32_t fromSeqNum) const
+{
     ASSERT(seqLE(begin, fromSeqNum) && seqLE(fromSeqNum, end));
 
     if (rexmitQueue.empty() || (fromSeqNum == end))
@@ -378,8 +368,8 @@ uint32_t TcpSackRexmitQueue::getNumOfDiscontiguousSacks(
     return counter;
 }
 
-void TcpSackRexmitQueue::checkSackBlock(uint32_t fromSeqNum, uint32_t &length,
-        bool &sacked, bool &rexmitted) const {
+void TcpSackRexmitQueue::checkSackBlock(uint32_t fromSeqNum, uint32_t& length, bool& sacked, bool& rexmitted) const
+{
     ASSERT(seqLE(begin, fromSeqNum) && seqLess(fromSeqNum, end));
 
     RexmitQueue::const_iterator i = rexmitQueue.begin();
@@ -388,9 +378,7 @@ void TcpSackRexmitQueue::checkSackBlock(uint32_t fromSeqNum, uint32_t &length,
         i++;
 
     ASSERT(i != rexmitQueue.end());
-    ASSERT(
-            seqLE(i->beginSeqNum, fromSeqNum)
-                    && seqLess(fromSeqNum, i->endSeqNum));
+    ASSERT(seqLE(i->beginSeqNum, fromSeqNum) && seqLess(fromSeqNum, i->endSeqNum));
 
     length = (i->endSeqNum - fromSeqNum);
     sacked = i->sacked;
@@ -400,4 +388,3 @@ void TcpSackRexmitQueue::checkSackBlock(uint32_t fromSeqNum, uint32_t &length,
 } // namespace tcp
 
 } // namespace inet
-

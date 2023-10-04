@@ -145,10 +145,10 @@ bool TcpConnection::isLost(uint32_t seqNum) {
             || rexmitQueue->getAmountOfSackedBytes(seqNum)
                     >= (state->dupthresh * state->snd_mss));
 
-    auto t1 = high_resolution_clock::now();
+    auto t2 = high_resolution_clock::now();
     auto ms_int = duration_cast<milliseconds>(t2 - t1);
 
-    emit(isLostMs, ms_int);
+    emit(isLostMs, ms_int.count());
 
     return isLost;
 }
@@ -220,10 +220,10 @@ void TcpConnection::setPipe() {
 
     emit(pipeSignal, state->pipe);
 
-    auto t1 = high_resolution_clock::now();
+    auto t2 = high_resolution_clock::now();
     auto ms_int = duration_cast<milliseconds>(t2 - t1);
 
-    emit(setPipeMs, ms_int);
+    emit(setPipeMs, ms_int.count());
 }
 
 bool TcpConnection::nextSeg(uint32_t &seqNum) {
@@ -270,10 +270,10 @@ bool TcpConnection::nextSeg(uint32_t &seqNum) {
             if (isLost(s2)) { // 1.a and 1.b are true, see above "for" statement
                 seqNum = s2;
 
-                auto t1 = high_resolution_clock::now();
+                auto t2 = high_resolution_clock::now();
                 auto ms_int = duration_cast<milliseconds>(t2 - t1);
 
-                emit(nextSegMs, ms_int);
+                emit(nextSegMs, ms_int.count());
 
                 return true;
             }
@@ -297,10 +297,10 @@ bool TcpConnection::nextSeg(uint32_t &seqNum) {
         if (buffered > 0 && effectiveWin >= state->snd_mss) {
             seqNum = state->snd_max; // HighData = snd_max
 
-            auto t1 = high_resolution_clock::now();
+            auto t2 = high_resolution_clock::now();
             auto ms_int = duration_cast<milliseconds>(t2 - t1);
 
-            emit(nextSegMs, ms_int);
+            emit(nextSegMs, ms_int.count());
 
             return true;
         }
@@ -342,10 +342,10 @@ bool TcpConnection::nextSeg(uint32_t &seqNum) {
                 // 1.a and 1.b are true, see above "for" statement
                 seqNum = s3;
 
-                auto t1 = high_resolution_clock::now();
+                auto t2 = high_resolution_clock::now();
                 auto ms_int = duration_cast<milliseconds>(t2 - t1);
 
-                emit(nextSegMs, ms_int);
+                emit(nextSegMs, ms_int.count());
 
                 return true;
             }

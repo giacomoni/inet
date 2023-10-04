@@ -49,6 +49,17 @@ simple TcpConnection {
         @signal[load];   // will record load (currently only with DcTcp)
         @signal[calcLoad];    // will record calcLoad (currently only with DcTcp)
         @signal[markingProb];   // will record marking probability (currently only with DcTcp)
+        
+        @signal[isLostDuration];
+        @signal[setPipeDuration];
+        @signal[nextSegMsDuration];
+        @signal[rexmitQueueSize];
+        
+        @statistic[isLostDuration](record=vector; interpolationmode=sample-hold);
+        @statistic[setPipeDuration](record=vector; interpolationmode=sample-hold);
+        @statistic[nextSegMsDuration](record=vector; interpolationmode=sample-hold);
+        @statistic[rexmitQueueSize](record=vector; interpolationmode=sample-hold);
+		
 		
 			    
 			    
