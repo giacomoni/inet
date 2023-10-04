@@ -87,7 +87,7 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
     ASSERT(seqLess(fromSeqNum, toSeqNum));
 
 
-    if (rexmitQueue.empty()) {
+    if (rexmitQueue.empty()) { //If queue is empty, then just create new region and insert
         region.beginSeqNum = fromSeqNum;
         region.endSeqNum = toSeqNum;
         region.sacked = false;
@@ -98,12 +98,12 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
     }
     else {
         auto lastElem = std::prev(rexmitQueue.end());
-        if(end == fromSeqNum){
-            if(!lastElem->sacked && !lastElem->rexmitted){
+        if(end == fromSeqNum){ //First time sending this data
+            if(!lastElem->sacked && !lastElem->rexmitted){ // Last sent region has not been rexmitted or sacked: we can extend it
                 lastElem->endSeqNum = toSeqNum;
                 found = true;
                 fromSeqNum = toSeqNum;
-            }else{
+            }else{ // Last sent region has been rexmitter or sacked, we have to create a new region and insert it
                 region.beginSeqNum = fromSeqNum;
                 region.endSeqNum = toSeqNum;
                 region.sacked = false;
@@ -123,25 +123,25 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
             ASSERT(i != rexmitQueue.end());
             ASSERT(seqLE(i->beginSeqNum, fromSeqNum) && seqLess(fromSeqNum, i->endSeqNum));
 
-            auto j = i;
+            auto j = i; // We will need to compare each element's state with the previous elemnt's state. j will point to the previous element
 
             if (i->beginSeqNum != fromSeqNum) {
-                // chunk item
+                // chunk item. i will point to j+1 because of the new insertion
                 region = *i;
                 region.endSeqNum = fromSeqNum;
                 rexmitQueue.insert(i, region);
                 i->beginSeqNum = fromSeqNum;
             }else{
-                j = std::prev(j);
+                j = std::prev(j); // we have to decrease j since i has not moved
             }
 
             while (i != rexmitQueue.end() && seqLE(i->endSeqNum, toSeqNum)) {
                 i->rexmitted = true;
                 fromSeqNum = i->endSeqNum;
-                if(j->rexmitted == i->rexmitted && j->sacked == i->sacked){
+                if(j->rexmitted == i->rexmitted && j->sacked == i->sacked){ //if states of consecutive regions match, we can merge the regions and delete region i. i will point to the next region and j to the region before i
                     j->endSeqNum = i->endSeqNum;
                     i = rexmitQueue.erase(i);
-                }else{
+                }else{ //We have to shift both i and j to point to their respective next regions.
                     i++;
                     j++;
                 }
@@ -223,16 +223,16 @@ void TcpSackRexmitQueue::setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum)
 
         ASSERT(i != rexmitQueue.end() && seqLE(i->beginSeqNum, fromSeqNum) && seqLess(fromSeqNum, i->endSeqNum));
 
-        auto j = i;
+        auto j = i; // We will need to compare each element's state with the previous elemnt's state. j will point to the previous element
 
         if (i->beginSeqNum != fromSeqNum) {
             Region region = *i;
 
             region.endSeqNum = fromSeqNum;
-            rexmitQueue.insert(i, region);
+            rexmitQueue.insert(i, region); // i will point to j+1 because of the new insertion
             i->beginSeqNum = fromSeqNum;
         }else{
-            j = std::prev(j);
+            j = std::prev(j); // we have to decrease j since i has not moved
         }
 
         while (i != rexmitQueue.end() && seqLE(i->endSeqNum, toSeqNum)) {
@@ -240,10 +240,10 @@ void TcpSackRexmitQueue::setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum)
                 found = true;
                 i->sacked = true; // set sacked bit
             }
-            if(i->rexmitted == j->rexmitted && i->sacked == j->sacked){
+            if(i->rexmitted == j->rexmitted && i->sacked == j->sacked){ //if states of consecutive regions match, we can merge the regions and delete region i. i will point to the next region and j to the region before i.
                 j->endSeqNum = i->endSeqNum;
                 i = rexmitQueue.erase(i);
-            }else{
+            }else{ //We have to shift both i and j to point to their respective next regions.
             j++;
             i++;
             }
