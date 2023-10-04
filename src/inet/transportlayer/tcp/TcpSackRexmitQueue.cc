@@ -123,19 +123,29 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
             ASSERT(i != rexmitQueue.end());
             ASSERT(seqLE(i->beginSeqNum, fromSeqNum) && seqLess(fromSeqNum, i->endSeqNum));
 
+            auto j = i;
+
             if (i->beginSeqNum != fromSeqNum) {
                 // chunk item
                 region = *i;
                 region.endSeqNum = fromSeqNum;
                 rexmitQueue.insert(i, region);
                 i->beginSeqNum = fromSeqNum;
+            }else{
+                j = std::prev(j);
             }
 
             while (i != rexmitQueue.end() && seqLE(i->endSeqNum, toSeqNum)) {
                 i->rexmitted = true;
                 fromSeqNum = i->endSeqNum;
+                if(j->rexmitted == i->rexmitted && j->sacked == i->sacked){
+                    j->endSeqNum = i->endSeqNum;
+                    i = rexmitQueue.erase(i);
+                }else{
+                    i++;
+                    j++;
+                }
                 found = true;
-                i++;
             }
 
             if (fromSeqNum != toSeqNum) {
@@ -213,12 +223,16 @@ void TcpSackRexmitQueue::setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum)
 
         ASSERT(i != rexmitQueue.end() && seqLE(i->beginSeqNum, fromSeqNum) && seqLess(fromSeqNum, i->endSeqNum));
 
+        auto j = i;
+
         if (i->beginSeqNum != fromSeqNum) {
             Region region = *i;
 
             region.endSeqNum = fromSeqNum;
             rexmitQueue.insert(i, region);
             i->beginSeqNum = fromSeqNum;
+        }else{
+            j = std::prev(j);
         }
 
         while (i != rexmitQueue.end() && seqLE(i->endSeqNum, toSeqNum)) {
@@ -226,8 +240,13 @@ void TcpSackRexmitQueue::setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum)
                 found = true;
                 i->sacked = true; // set sacked bit
             }
-
+            if(i->rexmitted == j->rexmitted && i->sacked == j->sacked){
+                j->endSeqNum = i->endSeqNum;
+                i = rexmitQueue.erase(i);
+            }else{
+            j++;
             i++;
+            }
         }
 
         if (i != rexmitQueue.end() && seqLess(i->beginSeqNum, toSeqNum) && seqLess(toSeqNum, i->endSeqNum)) {
