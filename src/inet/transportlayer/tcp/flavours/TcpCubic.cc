@@ -347,9 +347,6 @@ void TcpCubic::processRexmitTimer(TcpEventCode &event) {
 void TcpCubic::receivedDataAck(uint32_t firstSeqAcked) {
     TcpTahoeRenoFamily::receivedDataAck(firstSeqAcked);
 
-//    if (state->delay_min == 0
-//            || state->delay_min > state->srtt.inUnit(SIMTIME_US))
-//        state->delay_min = state->srtt.inUnit(SIMTIME_US);
 
     state->delay_min = state->srtt.inUnit(SIMTIME_US);
     if (state->snd_cwnd < state->ssthresh) {
@@ -377,13 +374,6 @@ void TcpCubic::receivedDataAck(uint32_t firstSeqAcked) {
         conn->emit(cwndSignal, state->snd_cwnd);
         conn->emit(ssthreshSignal, state->ssthresh);
 
-        //
-        // Note: some implementations use extra additive constant mss / 8 here
-        // which is known to be incorrect (RFC 2581 p5)
-        //
-        // Note 2: RFC 3465 (experimental) "Appropriate Byte Counting" (ABC)
-        // would require maintaining a bytes_acked variable here which we don't do
-        //
 
         EV_INFO
                        << "cwnd > ssthresh: Congestion Avoidance: increasing cwnd linearly, to "
@@ -450,14 +440,7 @@ void TcpCubic::receivedDuplicateAck() {
             conn->retransmitOneSegment(false);
             conn->emit(highRxtSignal, state->highRxt);
         }
-//        // perform Congestion Avoidance (RFC 2581)
-//        updateCubicCwnd(1);
-//        if (state->cwnd_cnt >= state->cnt) {
-//            state->snd_cwnd += state->snd_mss;
-//            state->cwnd_cnt = 0;
-//        } else {
-//            state->cwnd_cnt++;
-//        }
+
 
         conn->emit(cwndSignal, state->snd_cwnd);
         conn->emit(ssthreshSignal, state->ssthresh);

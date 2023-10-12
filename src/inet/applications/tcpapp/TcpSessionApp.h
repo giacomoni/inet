@@ -34,7 +34,7 @@ class INET_API TcpSessionApp : public TcpAppBase
     simtime_t tOpen;
     simtime_t tSend;
     simtime_t tClose;
-    int sendBytes = 0;
+    long sendBytes = 0;
 
     // state
     int commandIndex = -1;
