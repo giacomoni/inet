@@ -332,6 +332,8 @@ void TcpBaseAlg::rttMeasurementComplete(simtime_t tSent, simtime_t tAcked)
     const double g = 0.125; // 1 / 8; (1 - alpha) where alpha == 7 / 8;
     simtime_t newRTT = tAcked - tSent;
 
+    state->last_rtt = newRTT;
+
     simtime_t& srtt = state->srtt;
     simtime_t& rttvar = state->rttvar;
 
